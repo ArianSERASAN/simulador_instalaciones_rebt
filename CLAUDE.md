@@ -1,94 +1,93 @@
-# Instrucciones globales de Claude
+# Simulador REBT — instrucciones del proyecto
 
-Este archivo define el comportamiento de Claude Code en todos los proyectos de este workspace.
-
----
-
-## Comunicación y tono
-
-- Responder siempre en **español**
-- Respuestas **concisas y directas** — sin introducciones, sin palabrería
-- Sin emojis salvo que se pidan explícitamente
-- No repetir lo que el usuario acaba de decir
-- Si algo no está claro, preguntar en lugar de asumir
+Simulador educativo de instalaciones eléctricas de baja tensión según el REBT,
+para preparar el carné de **instalador básico (IBTB)**. Web app **PWA sin
+dependencias ni build**, instalable en el móvil y funcional sin conexión.
 
 ---
 
-## Comandos del proyecto
+## Comunicación
 
-Actualizar esta sección para cada proyecto:
-
-```
-# Python
-pip install -r requirements.txt
-python main.py
-python -m pytest
-
-# Node / JavaScript / TypeScript
-npm install
-npm run dev
-npm run build
-npm test
-npm run lint
-```
-
----
-
-## Estilo de código
-
-- Seguir las convenciones estándar del lenguaje/framework del proyecto
-- Preferir **claridad** sobre brevedad
-- Añadir comentarios solo donde la lógica no sea evidente por sí sola
-- No añadir docstrings, tipos o comentarios al código que no se ha modificado
-
----
-
-## Git
-
-- **NO hacer commits** salvo que el usuario lo pida explícitamente
-- Sí **sugerir** hacer commit cuando sea el momento obvio (ej: tarea completada)
-- **Nunca hacer push** sin confirmación explícita del usuario
-- Mensajes de commit en inglés, en imperativo, descriptivos del cambio
-- No usar `--no-verify` ni saltarse hooks salvo instrucción explícita
-
----
-
-## Seguridad y acciones destructivas
-
-Pedir **confirmación siempre** antes de:
-- Borrar archivos o directorios
-- `git reset --hard`, `git push --force`, `git clean`
-- Drop de tablas o bases de datos
-- Cualquier operación irreversible
-
-**Excepción**: si el usuario lo ha pedido explícitamente en el mismo mensaje, proceder directamente.
-
----
-
-## Tests
-
-- No proponer tests por defecto en todos los proyectos
-- Sugerir tests **solo si el proyecto ya tiene una suite de tests** activa
-- Usar el framework de tests que ya exista en el proyecto
+- Responder en **español**, conciso y directo, sin emojis salvo que se pidan.
+- Si algo no está claro, preguntar en lugar de asumir.
 
 ---
 
 ## Arquitectura
 
-<!-- Completar por proyecto: decisiones de diseño, patrones utilizados, estructura de carpetas -->
+JavaScript puro cargado como **scripts clásicos en orden**. Comparten un único
+ámbito global: un `const`/`let` declarado en un archivo es visible en los
+siguientes (no en `window`, sí por nombre). El orden de carga = orden de
+dependencias; **no reordenar** sin revisar.
+
+```
+index.html          markup + <link> css + <script src> 01→09
+styles.css          estilos
+src/01-core.js      estado global S, constantes REBT (V_RED=230, RHO_CU, CAIDA_MAX=3), almacenamiento
+src/02-catalog.js   DEFS: catálogo de componentes (Fase 1)
+src/03-draw.js      dibujo SVG de cada componente (drawBody, módulos DIN)
+src/04-ui.js        render, gestos (Pointer Events), fichas, paleta, toast
+src/05-engine.js    motor eléctrico: clase UF (unión-búsqueda sobre bornes)
+src/06-simulate.js  simulate() + panel de resultados (todas las reglas ITC)
+src/07-modes.js     retos, guardar/cargar, menús, modo/vista, arranque
+src/08-phase2.js    Fase 2 sobre DEFS (CGP, contador, telerruptor, avería…)
+src/09-main.js      boot final (con la Fase 2 ya registrada)
+sw.js               precache offline
+```
 
 ---
 
-## Variables de entorno
+## Cómo crecer
 
-<!-- Completar por proyecto: variables requeridas y opcionales -->
-<!-- Ejemplo:
-- DATABASE_URL — requerida
-- DEBUG=true — opcional, activa logs adicionales
--->
+**Componente nuevo** → en `src/08-phase2.js`, `Object.assign(DEFS, { … })` con
+los ganchos: `terms`, `props`, `state`, `draw(c, sim, multi)`, `links(c)`,
+`onAct`, `coil`, `load`, `ficha`, `fichaExtra`. Añadirlo a `PAL_CATS` para que
+aparezca en la paleta.
+
+**Regla eléctrica nueva** → dentro de `simulate()` en `src/06-simulate.js`,
+empujando a `msgs`. Citar siempre la **ITC** correspondiente en fichas y avisos.
 
 ---
 
-## Gotchas
+## Estilo de código
 
-<!-- Completar por proyecto: comportamientos no obvios, trampas comunes, quirks -->
+- Seguir el estilo existente; **claridad** sobre brevedad.
+- Comentarios solo donde la lógica no sea evidente. No añadir tipos, docstrings
+  ni comentarios al código que no se ha modificado.
+- Reutilizar las constantes y helpers de `src/01-core.js` (`r1`, `r2`, `mixHex`,
+  `clamp`, `V_RED`, `RHO_CU`…).
+
+---
+
+## Ejecutar y probar en local
+
+```
+python3 -m http.server 8000        # abrir http://localhost:8000 (activa el SW)
+```
+No abrir con `file://` si se quiere probar el service worker. Cuando un cambio
+afecte a la lógica (simulación, gestos, cálculos), **verificar el comportamiento**
+en navegador headless (Playwright en `/opt/node22/lib/node_modules`) antes de
+publicar, no solo revisar el código.
+
+---
+
+## Git, versiones y despliegue
+
+- **No** commitear ni hacer push salvo que se pida; sugerir commit cuando la
+  tarea esté completa. Mensajes en inglés, imperativo, descriptivos.
+- Rama de trabajo: **`main`**. Cada versión estable se marca como rama
+  `vX.Y.Z` (los *tags* no se pueden empujar por el proxy de git de la sesión).
+  Volver atrás: `git checkout vX.Y.Z`. Anotar los cambios en `CHANGELOG.md`.
+- Al publicar cambios visibles, **subir el número de caché en `sw.js`**
+  (`rebt-v7`, `rebt-v8`…) para que el PWA del iPhone reciba la actualización.
+- **Despliegue:** GitHub Pages sirve `main`
+  (Settings → Pages → Deploy from a branch → `main` / root) en
+  `https://arianserasan.github.io/simulador_instalaciones_rebt/`.
+
+---
+
+## Acciones destructivas
+
+Pedir confirmación antes de borrar archivos, `git reset --hard`,
+`git push --force`, `git clean` o cualquier operación irreversible — salvo que
+se haya pedido explícitamente en el mismo mensaje.
