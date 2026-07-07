@@ -1,7 +1,13 @@
 /* Service worker del Simulador REBT: precachea la app para que
    funcione sin conexión una vez visitada. */
-const CACHE = 'rebt-v5';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg', './apple-touch-icon.png'];
+const CACHE = 'rebt-v6';
+const FILES = [
+  './', './index.html', './styles.css',
+  './src/01-core.js', './src/02-catalog.js', './src/03-draw.js', './src/04-ui.js',
+  './src/05-engine.js', './src/06-simulate.js', './src/07-modes.js',
+  './src/08-phase2.js', './src/09-main.js',
+  './manifest.webmanifest', './icon.svg', './apple-touch-icon.png'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(

@@ -2,7 +2,43 @@
 
 Aplicación educativa para practicar el montaje de instalaciones eléctricas de vivienda según el REBT, pensada para preparar el carné de **instalador de baja tensión categoría básica (IBTB)**.
 
-**Toda la app vive en un único archivo** ([`index.html`](index.html), sin dependencias ni frameworks) acompañado de un service worker (`sw.js`), un manifest y los iconos para instalarse como PWA.
+La app **no usa dependencias ni frameworks** (JavaScript puro, sin build). El código está organizado en módulos que se cargan en orden como scripts clásicos (comparten el mismo ámbito global), acompañados de un service worker (`sw.js`), un manifest y los iconos para instalarse como PWA.
+
+## Estructura del proyecto
+
+```
+index.html            markup + <link> css + <script src> en orden
+styles.css            todos los estilos
+src/
+  01-core.js          estado (S), constantes REBT, almacenamiento
+  02-catalog.js       DEFS: catálogo de componentes (Fase 1)
+  03-draw.js          dibujo SVG de cada componente (drawBody, DIN)
+  04-ui.js            render, gestos táctiles, fichas, paleta, toast
+  05-engine.js        motor eléctrico (clase UF, unión-búsqueda)
+  06-simulate.js      simulate() + panel de resultados (reglas ITC)
+  07-modes.js         retos, guardar/cargar, menús, modo/vista, arranque
+  08-phase2.js        Fase 2 registrada sobre DEFS (CGP, telerruptor…)
+  09-main.js          boot final (con la Fase 2 ya registrada)
+sw.js                 precache offline (subir el nº de versión al publicar)
+manifest.webmanifest, icon.svg, apple-touch-icon.png
+```
+
+Los archivos se cargan en el orden `01→09`; cada uno depende de los anteriores. Para **crecer**, lo habitual es un componente nuevo en `08-phase2.js` (patrón `Object.assign(DEFS, {…})` con los ganchos `draw`, `links`, `onAct`, `coil`, `load`, `fichaExtra`) y sus reglas en `06-simulate.js`.
+
+## Desarrollo local y control de versiones
+
+```
+python3 -m http.server 8000      # y abrir http://localhost:8000
+```
+Servirlo por http (no abrir con file://) permite probar también el service worker.
+
+Cada versión estable se marca con una **etiqueta git** para poder volver atrás:
+```
+git tag                          # ver versiones (v1.0.0, v1.1.0, …)
+git checkout v1.0.0              # inspeccionar una versión anterior
+git revert <commit>              # deshacer un cambio conservando el historial
+```
+El historial de cambios está en [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Instalación en iPhone (PWA con GitHub Pages)
 
