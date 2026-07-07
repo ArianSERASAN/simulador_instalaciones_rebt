@@ -7,6 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#141a23">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>Simulador REBT — Instalaciones de baja tensión</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2960,6 +2963,13 @@ RETOS.push(
 
 /* ---------- arranque (con la Fase 2 ya registrada) ---------- */
 init();
+
+/* ---------- PWA: solo cuando se sirve por http(s); en file:// no hace nada ---------- */
+try {
+  if (location.protocol.indexOf('http') === 0 && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+} catch (e) {}
 </script>
 </body>
 </html>

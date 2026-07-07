@@ -2,13 +2,15 @@
 
 Aplicación educativa para practicar el montaje de instalaciones eléctricas de vivienda según el REBT, pensada para preparar el carné de **instalador de baja tensión categoría básica (IBTB)**.
 
-**Un único archivo:** [`simulador-rebt.html`](simulador-rebt.html). Sin conexión, sin dependencias, sin frameworks.
+**Toda la app vive en un único archivo** ([`index.html`](index.html), sin dependencias ni frameworks) acompañado de un service worker (`sw.js`), un manifest y los iconos para instalarse como PWA.
 
-## Instalación en iPhone
+## Instalación en iPhone (PWA con GitHub Pages)
 
-1. Pasa el archivo `simulador-rebt.html` al iPhone (AirDrop, Archivos, correo…).
-2. Ábrelo con **Safari**.
-3. Toca **Compartir → Añadir a pantalla de inicio**. Se abrirá a pantalla completa como una app y funciona con el modo avión activado.
+1. **Activar GitHub Pages** (solo una vez, el dueño del repositorio): el repositorio debe ser público (Settings → General → Change visibility) y en **Settings → Pages → Build and deployment** elegir *Deploy from a branch*, seleccionar la rama y la carpeta `/ (root)`. En un minuto la app queda en `https://<usuario>.github.io/Claude/`.
+2. En el iPhone, abre esa URL con **Safari**.
+3. Toca **Compartir → Añadir a pantalla de inicio**. Se instala como app a pantalla completa y, gracias al service worker, **funciona sin conexión** (modo avión incluido) a partir de la primera visita.
+
+> Nota: el archivo `index.html` también funciona abierto en cualquier navegador de escritorio, o en el iPhone con apps que ejecuten HTML local (p. ej. «Documents» de Readdle). La vista previa de la app Archivos (Quick Look) no ejecuta JavaScript, por eso ahí no funciona.
 
 ## Qué incluye
 
