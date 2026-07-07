@@ -276,7 +276,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'cargar') {
     const saves = getSaves();
     if (saves[id] && deserialize(saves[id].data)) {
-      aplicarModoVista(); update(); buildPalette(); closeModal(); toast('Cargado «' + id + '»');
+      resetHistory(); aplicarModoVista(); update(); buildPalette(); closeModal(); toast('Cargado «' + id + '»');
     } else toast('No se pudo cargar ese montaje');
   }
   else if (m === 'borrarSave') {
@@ -288,7 +288,7 @@ modalBody.addEventListener('click', e => {
 
 function nuevoMontaje() {
   S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
-  seed(); fitCamera(); update(); buildPalette();
+  seed(); fitCamera(); update(); buildPalette(); resetHistory();
 }
 function seed() {
   S.comps.push({ id: 'c' + (S.nextId++), type: 'red', x: 334, y: 24, props: {}, state: {} });
@@ -355,5 +355,6 @@ function init() {   // se invoca al final del script, con la Fase 2 ya cargada
   buildPalette();
   if (!cargado || !S.cam) fitCamera();
   update();
+  resetHistory();
   if (!store.get('rebt.hint')) $('#hint').classList.add('on');
 }

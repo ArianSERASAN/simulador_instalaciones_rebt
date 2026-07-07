@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [Sin publicar] — Deshacer / rehacer
+
+### Añadido
+- **Historial de edición** con botones flotantes de **deshacer** y **rehacer**
+  en el lienzo (y atajos `Ctrl/Cmd+Z` y `Ctrl/Cmd+Mayús+Z` / `Ctrl+Y`). Registra
+  cada edición estructural del montaje: añadir/borrar componentes, cablear,
+  borrar cable, mover aparatos y cambiar propiedades (calibre, sección, longitud,
+  carga…). Los retoques rápidos del mismo control se agrupan en un solo paso.
+  Accionar interruptores y protecciones no genera historial (es «usar», no
+  «editar»). El historial se reinicia al cargar, vaciar o arrancar un montaje.
+- `sw.js`: caché actualizada a `rebt-v7`.
+
 ## [v1.1.0] — Estructura modular
 
 ### Cambiado

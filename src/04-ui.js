@@ -118,6 +118,66 @@ function moveCompLive(c) {
 }
 
 /* ==================================================================
+   HISTORIAL — deshacer / rehacer
+   Se guarda el montaje ANTES de cada edición estructural (añadir,
+   borrar, cablear, mover, cambiar propiedades). Accionar interruptores
+   y protecciones no genera historial (es «usar», no «editar»).
+   ================================================================== */
+const HIST = { past: [], future: [], max: 80 };
+let histKey = null, histTime = 0;
+/* callbacks de la hoja que son edición del montaje (generan historial);
+   accionar/borrar/borrar-cable se gestionan aparte */
+const HIST_EDIT_CBS = { piaCal: 1, piaCir: 1, igaCal: 1, pot: 1, carga: 1, fp: 1, prop: 1, propStep: 1, wcol: 1, wsec: 1, wlen: 1 };
+
+function snapshot() {
+  return JSON.stringify({ comps: S.comps, wires: S.wires, nextId: S.nextId });
+}
+/* Registra el estado previo a una edición. coalesceKey agrupa retoques
+   rápidos del mismo control (p. ej. un stepper) en un solo paso de deshacer;
+   presnap permite pasar una instantánea capturada antes (arrastres). */
+function commit(coalesceKey, presnap) {
+  const now = Date.now();
+  if (coalesceKey && coalesceKey === histKey && now - histTime < 1000) { histTime = now; return; }
+  HIST.past.push(presnap != null ? presnap : snapshot());
+  if (HIST.past.length > HIST.max) HIST.past.shift();
+  HIST.future.length = 0;
+  histKey = coalesceKey || null; histTime = now;
+  refreshHistUI();
+}
+function applySnapshot(str) {
+  const d = JSON.parse(str);
+  S.comps = d.comps; S.wires = d.wires; S.nextId = d.nextId;
+  S.sel = null; S.selWire = null; wireDraft = null;
+}
+function undo() {
+  if (!HIST.past.length) return;
+  HIST.future.push(snapshot());
+  applySnapshot(HIST.past.pop());
+  histKey = null; afterHist();
+}
+function redo() {
+  if (!HIST.future.length) return;
+  HIST.past.push(snapshot());
+  applySnapshot(HIST.future.pop());
+  histKey = null; afterHist();
+}
+function afterHist() { closeSheet(); update(); buildPalette(); refreshHistUI(); }
+function resetHistory() { HIST.past.length = 0; HIST.future.length = 0; histKey = null; refreshHistUI(); }
+function refreshHistUI() {
+  const u = $('#undoBtn'), r = $('#redoBtn');
+  if (u) u.disabled = !HIST.past.length;
+  if (r) r.disabled = !HIST.future.length;
+}
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
+});
+
+/* ==================================================================
    MUTACIONES + simulación en vivo
    ================================================================== */
 let saveTimer = null;
@@ -130,6 +190,7 @@ function update() { SIM = simulate(); render(); autosave(); }
 function addComp(type, x, y) {
   const d = DEFS[type];
   if (d.unico && S.comps.some(c => c.type === type)) { toast('Ya hay una ' + d.corto + ' en el montaje'); return null; }
+  commit();
   const c = { id: 'c' + (S.nextId++), type, x: 0, y: 0, props: d.props(), state: d.state() };
   placeComp(c, x, y);
   S.comps.push(c);
@@ -160,6 +221,7 @@ function freeDinX(d) {
   return CUADRO.x + CUADRO.w / 2;
 }
 function delComp(id) {
+  commit();
   S.comps = S.comps.filter(c => c.id !== id);
   S.wires = S.wires.filter(w => w.a.c !== id && w.b.c !== id);
   if (S.sel === id) S.sel = null;
@@ -178,10 +240,12 @@ function addWire(a, b) {
   else if (ka === 'N' || kb === 'N') color = 'azul';
   else if (ka === 'X' && kb === 'X') color = 'negro';
   else if (ka === 'X' || kb === 'X') color = (ka === 'L' || kb === 'L') ? 'marron' : 'negro';
+  commit();
   S.wires.push({ id: 'w' + (S.nextId++), a, b, color, sec: 2.5, len: 5 });
   update();
 }
 function delWire(id) {
+  commit();
   S.wires = S.wires.filter(w => w.id !== id);
   if (S.selWire === id) S.selWire = null;
   update();
@@ -275,7 +339,7 @@ svg.addEventListener('pointerdown', e => {
   if (hit.comp) {
     const c = byId(hit.comp);
     const w = screenToWorld(e.clientX, e.clientY);
-    gest = { type: 'drag', id: hit.comp, offx: w.x - c.x, offy: w.y - c.y, moved: false, sx: e.clientX, sy: e.clientY };
+    gest = { type: 'drag', id: hit.comp, offx: w.x - c.x, offy: w.y - c.y, moved: false, sx: e.clientX, sy: e.clientY, snap: snapshot() };
     return;
   }
   if (hit.wire) {
@@ -333,7 +397,7 @@ svg.addEventListener('pointermove', e => {
       if (c) {
         const g0 = screenToWorld(gest.sx, gest.sy);
         const wasMomentary = gest.momentary;
-        gest = { type: 'drag', id: c.id, offx: g0.x - c.x, offy: g0.y - c.y, moved: true, sx: gest.sx, sy: gest.sy };
+        gest = { type: 'drag', id: c.id, offx: g0.x - c.x, offy: g0.y - c.y, moved: true, sx: gest.sx, sy: gest.sy, snap: snapshot() };
         if (wasMomentary) { c.state.pressed = false; update(); }   // el pulsador no queda accionado
         const w = screenToWorld(e.clientX, e.clientY);
         c.x = w.x - gest.offx; c.y = w.y - gest.offy;
@@ -380,6 +444,7 @@ function endPtr(e) {
     if (g.moved) {
       const c = byId(g.id);
       if (c) {
+        commit(null, g.snap);
         const d = defOf(c);
         placeComp(c, c.x + d.w / 2, c.y + d.h / 2);
         update();
@@ -531,6 +596,8 @@ sheetBody.addEventListener('click', e => {
   const cb = b.dataset.cb, v = b.dataset.v;
   const c = sheetBody.dataset.comp ? byId(sheetBody.dataset.comp) : null;
   const w = sheetBody.dataset.wire ? S.wires.find(x => x.id === sheetBody.dataset.wire) : null;
+
+  if (HIST_EDIT_CBS[cb] && (c || w)) commit(cb + ':' + ((c && c.id) || (w && w.id) || ''));
 
   if (cb === 'piaCal' && c) c.props.calibre = Number(v);
   else if (cb === 'piaCir' && c) c.props.circuito = v;
