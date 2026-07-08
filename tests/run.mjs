@@ -49,8 +49,10 @@ const PAGE_HELPERS = `
   window.__t = {
     reset() {
       S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null;
-      S.reto = null; S.averia = null; S.noche = false; S.mode = 'aprendiz';
-      S.lab = false; S.esquema = null;
+      S.reto = null; S.averia = null; S.averiaGen = null; S.noche = false; S.mode = 'aprendiz';
+      S.lab = false; S.esquema = null; S.hl = null; S.hlC = null;
+      store.del('rebt.antes');
+      document.getElementById('retoBar').classList.remove('on');
     },
     msgs(lvl) { return SIM.msgs.filter(m => !lvl || m.lvl === lvl).map(m => m.txt); },
     hasMsg(lvl, frag) { return SIM.msgs.some(m => m.lvl === lvl && m.txt.includes(frag)); }
@@ -1002,6 +1004,70 @@ const TESTS = [
     m.toma.x = 100; m.toma.y = 520;
     update();
     return r.check() === true ? 'con la toma en V1 no debería validar' : null;
+  })],
+
+  /* ---------- Fase 14: aislamiento de modos ---------- */
+
+  ['al salir de una avería se restaura el montaje anterior', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    montarVivienda();
+    mkComp('luz', 600, 760);           // marca distintiva: 2 luces
+    update();
+    startAveria('a2'); closeModal();
+    if (S.comps.filter(c => c.type === 'luz').length !== 1) return 'la avería a2 monta una sola luz';
+    if (!store.get('rebt.antes')) return 'debería guardarse el montaje del usuario';
+    exitReto();
+    if (S.comps.filter(c => c.type === 'luz').length !== 2) return 'al salir deberían volver las 2 luces del usuario';
+    if (S.averia || store.get('rebt.antes')) return 'avería y copia de seguridad deberían quedar limpias';
+    return null;
+  })],
+
+  ['el deshacer no puede escaparse de la avería', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    montarVivienda(); update();
+    startAveria('a4'); closeModal();
+    const n = S.comps.length;
+    undo();                            // no hay historial previo al ejercicio
+    if (S.comps.length !== n || S.averia !== 'a4') return 'undo no debería salirse del ejercicio';
+    exitReto();
+    return null;
+  })],
+
+  ['en una avería no se pueden desmontar aparatos (los cables sí)', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    startAveria('a4'); closeModal();
+    const n = S.comps.length, w = S.wires.length;
+    delComp(S.comps.find(c => c.type === 'luz').id);
+    if (S.comps.length !== n) return 'delComp debería estar bloqueado en avería';
+    delWire(S.wires[0].id);
+    if (S.wires.length !== w - 1) return 'los cables sí deben poder quitarse (es parte de reparar)';
+    exitReto();
+    return null;
+  })],
+
+  ['el ejercicio activo sobrevive a guardar/recargar', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    generarAveria(1); closeModal();
+    const sint = S.averiaGen.sintomas.length;
+    const s = serialize();
+    __t.reset();
+    if (!deserialize(s)) return 'deserialize falló';
+    if (S.averia !== 'gen' || !S.averiaGen || S.averiaGen.sintomas.length !== sint) return 'la avería debería sobrevivir al guardado';
+    restaurarBarra();
+    if (!document.getElementById('retoBar').classList.contains('on')) return 'la barra del ejercicio debería reaparecer';
+    exitReto();
+    return null;
+  })],
+
+  ['el examen no se pierde tocando fuera del cuadro', async page => page.evaluate(() => {
+    startExamen([0, 1, 2]);
+    const modal = document.getElementById('modal');
+    modal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    if (!modal.classList.contains('on')) return 'el modal del examen no debe cerrarse tocando fuera';
+    if (!EXAM) return 'el examen debería seguir en curso';
+    EXAM = null; closeModal();         // abandono explícito
+    modal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return null;
   })],
 
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {

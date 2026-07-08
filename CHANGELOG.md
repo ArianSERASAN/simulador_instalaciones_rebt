@@ -4,6 +4,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [v2.1.1] — Aislamiento de modos
+
+### Cambiado — Fase 14: cada modo funciona por su cuenta
+- **Empezar una avería ya no destruye tu montaje**: se guarda una copia y se
+  **restaura automáticamente al salir** (o al resolverla).
+- El **deshacer queda acotado al ejercicio**: no puede escaparse a un estado
+  anterior a la avería. Dentro del ejercicio sigue funcionando para tus
+  propias reparaciones.
+- En una avería **no se pueden desmontar aparatos** (los cables y propiedades
+  sí: eso es reparar); un aviso lo explica.
+- **Nuevo montaje, Cargar, Importar y Laboratorio** salen limpiamente del
+  reto/avería activo (restaurando el montaje) antes de actuar.
+- El **ejercicio activo sobrevive a recargas** de la app: el reto o la avería
+  viajan con el guardado y la barra superior se reconstruye al arrancar.
+- El **examen no se pierde** al tocar fuera del cuadro: se avisa, se puede
+  **continuar desde el menú** (con la pregunta en la que ibas) o **abandonar**
+  explícitamente (sin contar como intento).
+- Empezar un reto estando en una avería restaura primero tu montaje.
+- Caché SW `rebt-v20`.
+
 ## [v2.1.0] — Diagnóstico real, averías infinitas y estudio guiado
 
 ### Añadido — Fase 13: panel de progreso y banco de examen ampliado

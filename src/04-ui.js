@@ -229,6 +229,7 @@ function freeDinX(d) {
   return CUADRO.x + CUADRO.w / 2;
 }
 function delComp(id) {
+  if (S.averia) { toast('En una avería no se desmontan los aparatos: repara el cableado, las propiedades o sustituye fusibles y receptores.'); return; }
   histSnap();
   S.comps = S.comps.filter(c => c.id !== id);
   S.wires = S.wires.filter(w => w.a.c !== id && w.b.c !== id);
@@ -800,4 +801,9 @@ function toast(t) {
 const modal = $('#modal'), modalBody = $('#modalBody');
 function openModal(html) { modalBody.innerHTML = html; modal.classList.add('on'); }
 function closeModal() { modal.classList.remove('on'); }
-modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+modal.addEventListener('click', e => {
+  if (e.target !== modal) return;
+  // con un examen en curso, el toque fuera no lo cierra (evita perderlo sin querer)
+  if (typeof EXAM !== 'undefined' && EXAM) { toast('Examen en curso: responde o pulsa «Abandonar el examen»'); return; }
+  closeModal();
+});

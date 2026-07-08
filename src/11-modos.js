@@ -156,6 +156,7 @@ function examenModal() {
   openModal(`<div class="mTitle">Examen tipo test · IBTB</div>
     <div class="help"><p>Banco de <b>${EXAM_QS.length} preguntas</b> con su ITC. Cada examen son <b>10 al azar</b>; al responder verás la corrección razonada.
     ${st.intentos ? `<br>Exámenes hechos: <b>${st.intentos}</b> · mejor nota: <b>${st.record}/10</b>.` : ''}</p></div>
+    ${EXAM ? `<button class="bigbtn grn" data-m="examCont">Continuar el examen en curso (pregunta ${EXAM.i + 1} de ${EXAM.qs.length})</button><div style="height:8px"></div>` : ''}
     <button class="bigbtn pri" data-m="examStart">Examen general (10 al azar)</button>
     ${st.falladas.length ? `<div style="height:8px"></div><button class="bigbtn sec" data-m="examRepaso">Repasar ${st.falladas.length} pregunta${st.falladas.length > 1 ? 's' : ''} fallada${st.falladas.length > 1 ? 's' : ''}</button>` : ''}
     <div class="help"><p style="margin-top:10px"><b>O practica por bloques del temario:</b></p></div>` +
@@ -175,7 +176,8 @@ function examPregunta() {
   const q = EXAM_QS[EXAM.qs[EXAM.i]];
   openModal(`<div class="mTitle">Pregunta ${EXAM.i + 1} de ${EXAM.qs.length}</div>
     <div class="help"><p><b>${q.q}</b></p></div>` +
-    q.ops.map((o, i) => `<button class="mItem" data-m="examResp" data-id="${i}"><div>${esc(o)}</div></button>`).join(''));
+    q.ops.map((o, i) => `<button class="mItem" data-m="examResp" data-id="${i}"><div>${esc(o)}</div></button>`).join('') +
+    `<div style="height:10px"></div><button class="bigbtn sec" data-m="examSalir">Abandonar el examen</button>`);
 }
 function examResponder(i) {
   const qi = EXAM.qs[EXAM.i];
@@ -287,6 +289,8 @@ modalBody.addEventListener('click', e => {
   if (m === 'examen') examenModal();
   else if (m === 'progreso') progresoModal();
   else if (m === 'examStart') startExamen(examBarajar(EXAM_QS.map((q, i) => i), 10));
+  else if (m === 'examCont') { if (EXAM) examPregunta(); }
+  else if (m === 'examSalir') { EXAM = null; closeModal(); toast('Examen abandonado (no cuenta como intento)'); }
   else if (m === 'examBloque') { const mb = bloquesExamen().get(b.dataset.id); if (mb && mb.length) startExamen(examBarajar(mb, Math.min(10, mb.length))); }
   else if (m === 'examRepaso') { const f = examStats().falladas.filter(i => EXAM_QS[i]); if (f.length) startExamen(examBarajar(f, Math.min(10, f.length))); }
   else if (m === 'examResp') examResponder(Number(b.dataset.id));

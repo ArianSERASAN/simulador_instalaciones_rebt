@@ -1254,7 +1254,7 @@ function checkAveriaGen() {
 
 function generarAveria(nivel) {
   if (S.lab) toggleLab(false);
-  histSnap();
+  if (!S.averia && !S.reto) store.set('rebt.antes', serialize());   // conservar el montaje del usuario
   setMode(nivel >= 3 ? 'instalador' : 'aprendiz');
   const bases = nivel === 1 ? [montarVivienda, montarChalet] : [montarVivienda, montarChalet, montarEdificio, montarEdificio2];
   const nFallos = nivel === 1 ? 1 : (nivel === 2 ? 2 : 2 + Math.round(Math.random()));
@@ -1281,6 +1281,7 @@ function generarAveria(nivel) {
   }
   S.reto = null;
   S.averia = 'gen';
+  histClear();                    // el deshacer no puede escaparse del ejercicio
   $('#retoBar').classList.add('on');
   $('#retoTitle').textContent = 'Avería generada · nivel ' + nivel;
   closeModal(); closeSheet();
@@ -1316,11 +1317,12 @@ function startAveria(id) {
   if (id === 'azar') a = AVERIAS[Math.floor(Math.random() * AVERIAS.length)];
   if (!a) return;
   if (S.lab) toggleLab(false);
-  histSnap();
+  if (!S.averia && !S.reto) store.set('rebt.antes', serialize());   // conservar el montaje del usuario
   S.reto = null;
   S.averia = a.id;
   if (a.modo && S.mode !== a.modo) setMode(a.modo);
   a.build();
+  histClear();                    // el deshacer no puede escaparse del ejercicio
   $('#retoBar').classList.add('on');
   $('#retoTitle').textContent = 'Avería: ' + a.t;
   closeModal(); closeSheet();

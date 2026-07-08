@@ -107,7 +107,8 @@ function retosDone() { try { return JSON.parse(store.get('rebt.retos') || '{}') 
 function startReto(id) {
   const r = RETOS.find(r => r.id === id);
   if (!r) return;
-  S.reto = id; S.averia = null;
+  if (S.averia) exitReto();          // salir de la avería restaurando el montaje
+  S.reto = id; S.averia = null; S.averiaGen = null;
   if (r.modo === 'lab') { if (!S.lab) toggleLab(true); }
   else {
     if (S.lab) toggleLab(false);
@@ -119,7 +120,43 @@ function startReto(id) {
   openModal(`<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p></div>
     <button class="bigbtn pri" data-m="cerrar">Al lío</button>`);
 }
-function exitReto() { S.reto = null; S.averia = null; S.averiaGen = null; $('#retoBar').classList.remove('on'); update(); }
+/* salir del ejercicio: si era una avería (que sustituyó el lienzo),
+   se restaura el montaje que el usuario tenía antes de empezar */
+function exitReto() {
+  const eraAveria = !!S.averia;
+  S.reto = null; S.averia = null; S.averiaGen = null;
+  $('#retoBar').classList.remove('on');
+  if (eraAveria) {
+    const antes = store.get('rebt.antes');
+    store.del('rebt.antes');
+    if (antes && deserialize(antes)) { aplicarModoVista(); buildPalette(); fitCamera(); }
+    histClear();
+  }
+  update();
+}
+
+/* si hay un reto o avería activos, salir de él antes de otra acción global */
+function salirEjercicioSi() {
+  if (!S.reto && !S.averia) return false;
+  exitReto();
+  toast('Has salido del reto/avería; tu montaje anterior está restaurado');
+  return true;
+}
+
+/* reconstruir la barra del ejercicio (arranque o tras cargar/importar) */
+function restaurarBarra() {
+  const bar = $('#retoBar');
+  if (S.averia) {
+    const a = AVERIAS.find(x => x.id === S.averia);
+    bar.classList.add('on');
+    $('#retoTitle').textContent = a ? 'Avería: ' + a.t
+      : 'Avería generada · nivel ' + (S.averiaGen ? S.averiaGen.nivel : 1);
+  } else if (S.reto) {
+    const r = RETOS.find(x => x.id === S.reto);
+    if (r) { bar.classList.add('on'); $('#retoTitle').textContent = r.t; }
+    else { S.reto = null; bar.classList.remove('on'); }
+  } else bar.classList.remove('on');
+}
 $('#btnRetoExit').addEventListener('click', exitReto);
 $('#btnRetoCheck').addEventListener('click', () => {
   if (S.averia) { checkAveria(); return; }
@@ -146,7 +183,8 @@ $('#btnRetoCheck').addEventListener('click', () => {
    GUARDAR / CARGAR
    ================================================================== */
 function serialize() {
-  return JSON.stringify({ v: 2, mode: S.mode, view: S.view, comps: S.comps, wires: S.wires, nextId: S.nextId, cam: S.cam, noche: !!S.noche, esquema: S.esquema || null });
+  return JSON.stringify({ v: 2, mode: S.mode, view: S.view, comps: S.comps, wires: S.wires, nextId: S.nextId, cam: S.cam, noche: !!S.noche, esquema: S.esquema || null,
+    reto: S.reto || null, averia: S.averia || null, averiaGen: S.averiaGen || null });
 }
 function deserialize(str) {
   try {
@@ -172,6 +210,11 @@ function deserialize(str) {
     S.nextId = Math.max(Number(d.nextId) || 1, maxId + 1);
     S.noche = !!d.noche;
     S.esquema = ['2.1', '2.2.1', '2.2.2'].includes(d.esquema) ? d.esquema : null;
+    /* el ejercicio activo viaja con el montaje (sobrevive a recargas) */
+    S.reto = typeof d.reto === 'string' ? d.reto : null;
+    S.averiaGen = (d.averiaGen && Array.isArray(d.averiaGen.sintomas)) ? d.averiaGen : null;
+    S.averia = typeof d.averia === 'string' ? (d.averia === 'gen' ? (S.averiaGen ? 'gen' : null) : d.averia) : null;
+    if (S.averia) S.reto = null;
     S.mode = ['instalador', 'reglamento'].includes(d.mode) ? d.mode : 'aprendiz';
     S.view = d.view === 'multifilar' ? 'multifilar' : 'realista';
     if (d.cam && typeof d.cam.s === 'number') S.cam = { tx: d.cam.tx || 0, ty: d.cam.ty || 0, s: clamp(d.cam.s, 0.3, 3.2) };
@@ -211,9 +254,10 @@ function importarMontaje() {
     if (!f) return;
     const rd = new FileReader();
     rd.onload = () => {
+      salirEjercicioSi();
       histSnap();
       if (deserialize(String(rd.result))) {
-        aplicarModoVista(); fitCamera(); update(); buildPalette(); closeModal();
+        restaurarBarra(); aplicarModoVista(); fitCamera(); update(); buildPalette(); closeModal();
         toast('Montaje importado');
       } else toast('Ese archivo no es un montaje del simulador');
     };
@@ -371,7 +415,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'tabla') tablaModal();
   else if (m === 'esquema') esquemaModal();
   else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
-  else if (m === 'lab') toggleLab(!S.lab);
+  else if (m === 'lab') { if (!S.lab) salirEjercicioSi(); toggleLab(!S.lab); }
   else if (m === 'rehacer') { redo(); closeModal(); }
   else if (m === 'medir') { setMedir(true); closeModal(); }
   else if (m === 'exportar') exportarMontaje();
@@ -379,7 +423,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'capturar') capturarPNG();
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
-  else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }
+  else if (m === 'nuevoSi') { salirEjercicioSi(); nuevoMontaje(); closeModal(); }
   else if (m === 'guardar') {
     const inp = $('#saveName');
     const n = (inp && inp.value.trim()) || ('Montaje ' + new Date().toLocaleDateString('es-ES'));
@@ -390,10 +434,11 @@ modalBody.addEventListener('click', e => {
     montajesModal();
   }
   else if (m === 'cargar') {
+    salirEjercicioSi();
     const saves = getSaves();
     histSnap();
     if (saves[id] && deserialize(saves[id].data)) {
-      aplicarModoVista(); update(); buildPalette(); closeModal(); toast('Cargado «' + id + '»');
+      restaurarBarra(); aplicarModoVista(); update(); buildPalette(); closeModal(); toast('Cargado «' + id + '»');
     } else toast('No se pudo cargar ese montaje');
   }
   else if (m === 'borrarSave') {
@@ -474,5 +519,6 @@ function init() {   // se invoca al final del script, con la Fase 2 ya cargada
   buildPalette();
   if (!cargado || !S.cam) fitCamera();
   update();
+  restaurarBarra();               // un reto o avería activos sobreviven a la recarga
   if (!store.get('rebt.hint')) $('#hint').classList.add('on');
 }
