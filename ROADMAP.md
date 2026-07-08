@@ -15,7 +15,7 @@ Decisiones de alcance confirmadas por el usuario:
 
 ---
 
-## Fase 0 — Infraestructura de verificación · EN CURSO
+## Fase 0 — Infraestructura de verificación · HECHA
 
 - `ROADMAP.md` (este documento).
 - Harness de pruebas headless (`tests/run.mjs`, Playwright + chromium del
@@ -25,7 +25,7 @@ Decisiones de alcance confirmadas por el usuario:
 - Casos base que cubren el comportamiento actual (regresión): primera luz,
   conmutada, corto, fuga a tierra, sobrecarga, enlace unifamiliar actual.
 
-## Fase 1 — Motor multifase + red trifásica 400/230 V
+## Fase 1 — Motor multifase + red trifásica 400/230 V · HECHA
 
 Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 **suministro con L1/L2/L3/N**:
@@ -42,7 +42,7 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 - Nuevo receptor **motor trifásico** (valida el motor multifase).
 - Compatibilidad total con montajes guardados (la `red` mono sigue igual).
 
-## Fase 2 — Enlace unifamiliar completo (esquema 2.1 de ITC-BT-12)
+## Fase 2 — Enlace unifamiliar completo (esquema 2.1 de ITC-BT-12) · HECHA
 
 - Componente **CPM** (Caja de Protección y Medida: fusibles + contador en la
   misma envolvente; sin LGA). ITC-BT-13.
@@ -52,7 +52,7 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 - Reglas nuevas en `simulate()` + puntos nuevos del boletín.
 - Reto «Chalet: enlace con CPM» y avería «La DI que se queda corta».
 
-## Fase 3 — Centralización de contadores en un lugar (esquema 2.2.1)
+## Fase 3 — Centralización de contadores en un lugar (esquema 2.2.1) · HECHA
 
 - Componentes: **IGM** (interruptor general de maniobra, tetrapolar; 160 A
   hasta 90 kW — ITC-BT-16), **fusible de seguridad** por derivación,
@@ -69,13 +69,13 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 - Reto «Edificio de 4 viviendas» y averías de edificio (fusible de seguridad
   fundido, LGA subdimensionada…).
 
-## Fase 4 — Centralizaciones en más de un lugar (esquema 2.2.2)
+## Fase 4 — Centralizaciones en más de un lugar (esquema 2.2.2) · HECHA
 
 - Varias centralizaciones parciales colgando de la misma CGP/LGA (por plantas).
 - LGA hacia centralizaciones parciales: caída máxima **1 %**. ITC-BT-14.
 - Comprobaciones y boletín del esquema completo; reto de edificio por plantas.
 
-## Fase 5 — Laboratorio de circuitos básicos (modo nuevo)
+## Fase 5 — Laboratorio de circuitos básicos (modo nuevo) · HECHA
 
 - **Solver eléctrico real** por análisis nodal (MNA) en JS puro, sin
   dependencias: tensiones de nodo y corrientes de rama.
@@ -87,12 +87,16 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 - Retos didácticos: ley de Ohm, serie vs paralelo, divisor de tensión, por qué
   funde un fusible.
 
-## Fase 6 — Solver real en el simulador REBT
+## Fase 6 — Cálculo en cascada en el simulador REBT · HECHA
 
-- Usar el MNA para corrientes y caídas **reales por rama** en el simulador
-  principal: brillo exacto, sobrecargas por corriente calculada, diferencial
-  por mA de fuga. El unión-búsqueda se conserva para los diagnósticos
-  topológicos («qué falta»).
+- La tensión que llega a cada receptor descuenta ahora **todas las caídas en
+  cascada**: LGA (fase-neutro) + derivación individual + circuito interior.
+  El brillo de las bombillas y el «le llegan X V» de las fichas reflejan la
+  instalación completa.
+- Decisión de diseño: las sobrecargas y caídas siguen calculándose con las
+  **fórmulas normativas por tramo** (ΔU = 2·ρ·L·I/S), que son exactamente el
+  método que se estudia para el IBTB; el MNA exacto queda reservado al
+  Laboratorio, donde sí es el objetivo didáctico.
 
 ## Fase 7 — Modos extra
 

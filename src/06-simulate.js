@@ -6,7 +6,7 @@
 function simulate() {
   const msgs = [];
   const res = { msgs, lit: {}, vlit: {}, tomas: {}, liveW: {}, circuits: [], difConTension: {}, sinRed: false, fault: null,
-    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true, di: null, dis: [], lga: null, pMedida: {} };
+    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true, di: null, dis: [], lga: null, pMedida: {}, vEnlace: {} };
   const sup = getSupply();
   const picas = S.comps.filter(c => c.type === 'pica');
   const inst = S.mode !== 'aprendiz';
@@ -340,6 +340,7 @@ function simulate() {
       (esFase ? wF : wN).push(w);
     }
     let P = 0, I = 0;
+    const cargas = [];
     for (const c of S.comps) {
       const d = defOf(c);
       const esToma = c.type === 'toma';
@@ -349,10 +350,11 @@ function simulate() {
       if (!enMarcha) continue;
       const terms = d.load3 ? ['L1', 'L2', 'L3'] : ['L'];
       if (!terms.some(tm => caeCon(tM, tMR, c.id, tm))) continue;
+      cargas.push(c.id);
       P += esToma ? c.props.carga : c.props.potencia;
       I += esToma ? c.props.carga / (V_RED * (c.props.fp || 1)) : iReceptor(c);
     }
-    return { wF, wN, P, I };
+    return { wF, wN, P, I, cargas };
   };
 
   if (sup && !potCorto) {
@@ -370,9 +372,12 @@ function simulate() {
       if (!tr.wF.length) continue;
       const smin = Math.min(...[...tr.wF, ...tr.wN].map(w => w.sec));
       const lf = tr.wF.reduce((a, w) => a + w.len, 0);
-      const pct = r2(((2 * RHO_CU * lf * total.I) / smin) / V_RED * 100);
+      const vDI = (2 * RHO_CU * lf * total.I) / smin;
+      const pct = r2(vDI / V_RED * 100);
       const lim = conLGA ? DI_CAIDA_CON_LGA : DI_CAIDA_SIN_LGA;
       res.dis.push({ smin, pct, lf, lim });
+      /* la caída de esta DI la sufren todos sus receptores aguas abajo */
+      for (const id of total.cargas) res.vEnlace[id] = (res.vEnlace[id] || 0) + vDI;
       if (inst && smin < DI_SEC_MIN) {
         msgs.push({ lvl: 'err', txt: `Una derivación individual tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15' });
       }
@@ -394,6 +399,12 @@ function simulate() {
         const caida = sup.tri ? (Math.sqrt(3) * RHO_CU * lf * iMax) / smin : (2 * RHO_CU * lf * iMax) / smin;
         const pct = r2(caida / (sup.tri ? V_LL : V_RED) * 100);
         res.lga = { smin, pct, lim };
+        /* caída fase-neutro de la LGA: la sufre todo lo que hay aguas abajo */
+        const vFN = sup.tri ? caida / Math.sqrt(3) : caida;
+        if (vFN > 0.001) for (const c of S.comps) {
+          const d = defOf(c);
+          if (c.type === 'luz' || c.type === 'toma' || d.load || d.load3) res.vEnlace[c.id] = (res.vEnlace[c.id] || 0) + vFN;
+        }
         if (inst && smin < LGA_SEC_MIN) msgs.push({ lvl: 'err', txt: `La línea general de alimentación tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${LGA_SEC_MIN} mm² en cobre.`, itc: 'ITC-BT-14' });
         if (inst && pct > lim) msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la LGA (máximo ${fmtNum(lim)} % hacia ${igms.length > 1 ? 'centralizaciones parciales' : 'una centralización única'}): aumenta la sección.`, itc: 'ITC-BT-14' });
       }
@@ -418,6 +429,12 @@ function simulate() {
         msgs.push({ lvl: 'warn', txt: `Fases desequilibradas: L1 ${fmtNum(r1(iFases[0]))} A · L2 ${fmtNum(r1(iFases[1]))} A · L3 ${fmtNum(r1(iFases[2]))} A. Reparte mejor las cargas.`, itc: 'ITC-BT-16' });
       }
     }
+  }
+
+  /* --- cascada real: al receptor le llega la red menos TODAS las caídas
+     (LGA + derivación individual + circuito interior) --- */
+  for (const id of Object.keys(res.vlit)) {
+    if (res.vEnlace[id]) res.vlit[id] = Math.max(0, res.vlit[id] - res.vEnlace[id]);
   }
 
   /* --- viviendas compactas: la DI lleva también la tierra --- */

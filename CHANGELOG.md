@@ -6,6 +6,14 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 6: caída de tensión en cascada
+- La tensión que llega a cada receptor descuenta ahora **toda la cadena**:
+  caída fase-neutro de la LGA + caída de su derivación individual + caída del
+  circuito interior. El **brillo** de las bombillas y el «le llegan X V» de
+  las fichas reflejan la instalación completa, no solo el último tramo.
+- Los cálculos siguen el método normativo por tramos (ΔU = 2·ρ·L·I/S), el
+  mismo que se estudia para el IBTB. Caché SW `rebt-v12`.
+
 ### Añadido — Fase 5: laboratorio de circuitos básicos
 - Nuevo espacio **Laboratorio** (menú → Laboratorio de circuitos), separado
   del simulador REBT y con su propio guardado: al entrar y salir se conserva

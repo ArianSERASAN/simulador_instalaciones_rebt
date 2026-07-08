@@ -658,6 +658,36 @@ const TESTS = [
     return v === true ? null : 'el reto rl1 debería validar: ' + v;
   })],
 
+  /* ---------- Fase 6: caída en cascada (enlace + interior) ---------- */
+
+  ['la tensión del receptor descuenta LGA + DI + circuito', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    S.mode = 'instalador';
+    m.toma.props.carga = 3500;
+    m.diF.len = 25; m.diN.len = 25;
+    update();
+    const vluz = SIM.vlit[m.luz.id];
+    if (vluz == null) return 'la luz encendida debería tener tensión calculada';
+    const vDI = SIM.di.pct * 230 / 100;
+    if (vDI < 1) return 'con 15,5 A y 25 m la DI debería caer más de 1 V (cae ' + vDI + ')';
+    const c1 = SIM.circuits.find(ci => ci.circuito === 'C1');
+    const vCirc = c1.pct * 230 / 100;
+    const esperado = 230 - vDI - vCirc;
+    if (Math.abs(vluz - esperado) > 0.05) return `esperaba ${esperado} V en la luz, hay ${vluz}`;
+    return null;
+  })],
+
+  ['sin carga apenas hay caída en cascada', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    S.mode = 'instalador';
+    m.toma.props.carga = 0;
+    update();
+    const vluz = SIM.vlit[m.luz.id];
+    return (vluz > 229.5 && vluz <= 230) ? null : 'sin cargas grandes deberían llegar ~230 V, llegan ' + vluz;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();
