@@ -692,6 +692,56 @@ Object.assign(DEFS, {
 });
 
 /* ==================================================================
+   ZONA DE BAÑO — volúmenes de la ITC-BT-27
+   ================================================================== */
+const BANO_V2 = 55;    // anchura de la franja del volumen 2 (0,6 m)
+const BANO_V3 = 190;   // hasta donde llega el volumen 3 (2,4 m)
+
+Object.assign(DEFS, {
+  banera: {
+    nombre: 'Zona de baño (bañera / ducha)', corto: 'Baño',
+    w: 200, h: 110, din: false, zona: true,
+    terms: [],
+    props: () => ({}), state: () => ({}),
+    ficha: fichaTxt(`Dibuja los <b>volúmenes de protección</b> alrededor de la bañera o ducha: <b>V0/V1</b> (la propia bañera y su vertical), <b>V2</b> (0,6 m alrededor) y <b>V3</b> (2,4 m más allá). En V0–V2 no se admiten tomas ni interruptores (solo MBTS de 12 V o aparatos aptos para el volumen); en V3, tomas protegidas por diferencial de 30 mA. Arrastra mecanismos encima para comprobar dónde pueden ir. <span class="itc">ITC-BT-27</span>`),
+    draw(c, sim, multi) {
+      const w = 200, h = 110, m2 = BANO_V2, m3 = BANO_V3;
+      const lbl = multi ? '#7d8794' : '#8b93a1';
+      return `
+        <rect x="${-m3}" y="${-m3}" width="${w + 2 * m3}" height="${h + 2 * m3}" rx="18" fill="rgba(84,160,220,.05)" stroke="#7fb3d9" stroke-width="1.2" stroke-dasharray="4 6" pointer-events="none"/>
+        <rect x="${-m2}" y="${-m2}" width="${w + 2 * m2}" height="${h + 2 * m2}" rx="14" fill="rgba(84,160,220,.09)" stroke="#5a9bc9" stroke-width="1.4" stroke-dasharray="6 5" pointer-events="none"/>
+        <text x="${w + m3 - 8}" y="${-m3 + 15}" font-size="10" fill="${lbl}" text-anchor="end" font-weight="700" pointer-events="none">V3</text>
+        <text x="${w + m2 - 8}" y="${-m2 + 14}" font-size="10" fill="${lbl}" text-anchor="end" font-weight="700" pointer-events="none">V2</text>
+        <rect x="0" y="0" width="${w}" height="${h}" rx="16" fill="${multi ? '#eef4f8' : '#dbe7f0'}" stroke="#7fa8c4" stroke-width="2"/>
+        <rect x="10" y="10" width="${w - 20}" height="${h - 20}" rx="12" fill="${multi ? '#fff' : '#f2f7fa'}" stroke="#a9c4d6"/>
+        <circle cx="${w - 34}" cy="${h / 2}" r="6" fill="#9db8c9"/>
+        <text x="${w / 2}" y="${h / 2 + 4}" font-size="11" fill="#6c8ba1" text-anchor="middle" font-weight="700">BAÑERA · V0/V1</text>`;
+    }
+  }
+});
+
+/* ¿en qué volumen del baño `b` cae el centro del componente `c`? */
+function volumenBanoDe(b, c) {
+  const d = defOf(c);
+  const cx = c.x + d.w / 2, cy = c.y + d.h / 2;
+  const dentro = m => cx >= b.x - m && cx <= b.x + 200 + m && cy >= b.y - m && cy <= b.y + 110 + m;
+  if (dentro(0)) return 1;
+  if (dentro(BANO_V2)) return 2;
+  if (dentro(BANO_V3)) return 3;
+  return null;
+}
+/* volumen más restrictivo entre todas las zonas de baño del plano */
+function volumenBano(c) {
+  let v = null;
+  for (const b of S.comps.filter(x => x.type === 'banera')) {
+    if (b.id === c.id) continue;
+    const vb = volumenBanoDe(b, c);
+    if (vb != null && (v == null || vb < v)) v = vb;
+  }
+  return v;
+}
+
+/* ==================================================================
    PALETA POR CATEGORÍAS
    ================================================================== */
 const PAL_CATS = [
@@ -699,7 +749,7 @@ const PAL_CATS = [
   { id: 'enlace', n: 'Enlace', items: ['red', 'red3', 'cpm', 'cgp', 'contador', 'icp'] },
   { id: 'edificio', n: 'Edificio', items: ['cgp3', 'igm', 'embarrado', 'fusi', 'contador', 'cvivienda'] },
   { id: 'maniobras', n: 'Maniobras', items: ['int', 'conm', 'cruz', 'puls', 'tele', 'minut', 'presencia', 'crepus', 'prog'] },
-  { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor', 'motor3'] }
+  { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor', 'motor3', 'banera'] }
 ];
 
 /* ==================================================================
@@ -1449,6 +1499,26 @@ RETOS.push(
       if (!SIM.lga) return 'No se detecta la LGA: debe salir de la CGP trifásica hacia los IGM.';
       if (SIM.lga.smin < LGA_SEC_MIN) return 'La LGA debe ser de 10 mm² como mínimo.';
       if (S.esquema !== '2.2.2') return 'Declara el esquema 2.2.2 en el menú (Esquema de enlace).';
+      if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
+      return true;
+    }
+  },
+  {
+    id: 'r12', t: 'El baño reglamentario', modo: null,
+    desc: 'Coloca una <b>zona de baño</b> (pestaña Receptores) y monta a su alrededor: una <b>luz encendida</b> en el volumen 2 o 3, su <b>interruptor en el volumen 3</b> (o fuera del baño) y una <b>toma con tierra en el volumen 3</b>. Nada de mecanismos pegados a la bañera (ITC-BT-27).',
+    check() {
+      if (!S.comps.some(c => c.type === 'banera')) return 'Añade la zona de baño (pestaña Receptores).';
+      const ev = pureEval();
+      const luz = S.comps.find(c => c.type === 'luz' && ev.lit[c.id] && [2, 3].includes(volumenBano(c)));
+      if (!luz) return 'Hace falta una luz encendida dentro del baño (volumen 2 o 3, nunca sobre la bañera).';
+      const toma = S.comps.find(c => c.type === 'toma' && volumenBano(c) === 3 &&
+        SIM.tomas[c.id] && SIM.tomas[c.id].tension && SIM.tomas[c.id].tierra);
+      if (!toma) return 'Hace falta una toma con tensión y tierra en el volumen 3.';
+      const sw = S.comps.find(c => c.type === 'int' && withToggle(c, 'on', () => pureEval().lit[luz.id]) === false);
+      if (!sw) return 'La luz del baño debe apagarse con un interruptor.';
+      const vsw = volumenBano(sw);
+      if (vsw != null && vsw < 3) return 'El interruptor no puede quedar en los volúmenes 0-2: muévelo al volumen 3 o fuera del baño.';
+      if (!cadenaProteccion(luz.id)) return 'Protege el circuito: IGA + diferencial + PIA armados.';
       if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
       return true;
     }

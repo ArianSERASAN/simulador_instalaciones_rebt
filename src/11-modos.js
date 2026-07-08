@@ -49,7 +49,9 @@ const EXAM_QS = [
   { q: 'El esquema 2.2.2 de la ITC-BT-12 corresponde a…', ops: ['Un solo usuario', 'Contadores centralizados en un único lugar', 'Contadores centralizados en más de un lugar (por plantas)', 'Suministros provisionales de obra'], ok: 2, itc: 'ITC-BT-12', exp: 'Varias centralizaciones parciales colgando de la misma CGP y LGA.' },
   { q: '¿Qué diámetro de tubo corresponde al circuito C3 (6 mm²)?', ops: ['16 mm', '20 mm', '25 mm', '32 mm'], ok: 2, itc: 'ITC-BT-25', exp: 'C1: 16 mm · C2/C4/C5: 20 mm · C3: 25 mm.' },
   { q: 'El contador mide…', ops: ['La potencia contratada', 'La energía consumida (kWh)', 'La corriente de fuga', 'La resistencia de tierra'], ok: 1, itc: 'ITC-BT-16', exp: 'Energía en kWh; va precintado por la compañía.' },
-  { q: 'La acometida es…', ops: ['El tramo del cuadro a los enchufes', 'El tramo de la red de distribución hasta la CGP, responsabilidad de la empresa distribuidora', 'La toma de tierra', 'El hilo de mando'], ok: 1, itc: 'ITC-BT-11', exp: 'Une la red de la compañía con la caja general de protección.' }
+  { q: 'La acometida es…', ops: ['El tramo del cuadro a los enchufes', 'El tramo de la red de distribución hasta la CGP, responsabilidad de la empresa distribuidora', 'La toma de tierra', 'El hilo de mando'], ok: 1, itc: 'ITC-BT-11', exp: 'Une la red de la compañía con la caja general de protección.' },
+  { q: '¿Dónde puede instalarse una toma de corriente normal en un cuarto de baño?', ops: ['En cualquier sitio si tiene tierra', 'En el volumen 1, junto a la bañera', 'En el volumen 3, protegida por diferencial de 30 mA', 'Está prohibida en todo el baño'], ok: 2, itc: 'ITC-BT-27', exp: 'En los volúmenes 0, 1 y 2 no se admiten tomas normales; en el volumen 3 sí, con diferencial de 30 mA (o MBTS / transformador separador).' },
+  { q: 'La franja del volumen 2 alrededor de la bañera se extiende…', ops: ['0,20 m', '0,60 m desde el volumen 1', '1,50 m', '3 m'], ok: 1, itc: 'ITC-BT-27', exp: 'El volumen 2 llega hasta 0,60 m del borde del volumen 1; el volumen 3 se extiende 2,40 m más.' }
 ];
 
 /* ---------- estado y estadísticas del examen ---------- */

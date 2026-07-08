@@ -6,6 +6,15 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 12: volúmenes de baño (ITC-BT-27)
+- Componente **Zona de baño** (pestaña Receptores): dibuja la bañera con sus
+  volúmenes **V0/V1, V2 y V3** en franjas punteadas. Al arrastrar mecanismos
+  dentro, `simulate()` valida la ITC-BT-27: tomas y mecanismos prohibidos en
+  V0–V2 (con solución explicada y señalización), luminaria en V1 prohibida y
+  en V2 con aviso de clase II/IPX4.
+- Reto **«El baño reglamentario»** (r12) y 2 preguntas nuevas de examen.
+- Caché SW `rebt-v18`.
+
 ### Añadido — Fase 11: compartir montajes y captura de imagen
 - En **Mis montajes**: **Exportar** (archivo `.json`, con la hoja de
   compartir nativa del móvil cuando existe), **Importar** (carga un archivo

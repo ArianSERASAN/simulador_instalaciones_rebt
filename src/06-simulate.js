@@ -489,6 +489,27 @@ function simulate() {
     }
   }
 
+  /* --- volúmenes de baño (ITC-BT-27): reglas de colocación --- */
+  if (S.comps.some(c => c.type === 'banera')) {
+    for (const c of S.comps) {
+      if (defOf(c).zona) continue;
+      const vol = volumenBano(c);
+      if (vol == null) continue;
+      if (c.type === 'toma' && vol <= 2) {
+        msgs.push({ lvl: 'err', txt: `Hay una base de enchufe en el volumen ${vol} del baño: prohibida. Solo se admiten en el volumen 3, protegidas por diferencial de 30 mA.`, itc: 'ITC-BT-27', hl: { c: [c.id] },
+          fix: 'Arrastra la toma más allá de la línea V2 (a 0,6 m de la bañera): en el volumen 3 ya es reglamentaria con su diferencial de 30 mA. Pegada a la bañera solo cabría una toma MBTS de 12 V o de afeitadora con transformador separador.' });
+      } else if ((c.type === 'int' || c.type === 'conm' || c.type === 'puls') && vol <= 2) {
+        msgs.push({ lvl: 'err', txt: `Hay un mecanismo (interruptor/conmutador) en el volumen ${vol} del baño: los mecanismos van en el volumen 3 o fuera.`, itc: 'ITC-BT-27', hl: { c: [c.id] },
+          fix: 'Accionar un interruptor con las manos mojadas y los pies en la bañera es el accidente clásico. Sácalo de la franja V2: en V3 —o fuera del baño, junto a la puerta— ya es reglamentario. En V0–V2 solo se admiten mecanismos MBTS de 12 V.' });
+      } else if (c.type === 'luz' && vol === 1) {
+        msgs.push({ lvl: 'err', txt: 'Hay una luminaria en el volumen 1 (sobre la bañera): solo se admiten aparatos MBTS de 12 V o aptos para ese volumen.', itc: 'ITC-BT-27', hl: { c: [c.id] },
+          fix: 'Muévela al volumen 2 o 3. Justo encima de la bañera solo caben luminarias de muy baja tensión de seguridad (12 V) o específicamente aptas (IPX5).' });
+      } else if (c.type === 'luz' && vol === 2) {
+        msgs.push({ lvl: 'warn', txt: 'Luminaria en el volumen 2 del baño: debe ser de clase II con protección IPX4 como mínimo (aquí se da por buena).', itc: 'ITC-BT-27', hl: { c: [c.id] } });
+      }
+    }
+  }
+
   /* --- IGA en cabecera --- */
   if (S.comps.some(c => c.type === 'pia') && sup && !potCorto) {
     const igas = S.comps.filter(c => c.type === 'iga');

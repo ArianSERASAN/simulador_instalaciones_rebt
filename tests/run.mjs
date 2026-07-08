@@ -950,6 +950,46 @@ const TESTS = [
     return svgCapturaXML() === null ? null : 'sin componentes no hay nada que capturar';
   })],
 
+  /* ---------- Fase 12: volúmenes de baño (ITC-BT-27) ---------- */
+
+  ['baño: toma y mecanismo en volúmenes prohibidos dan error', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    mkComp('banera', 60, 500);
+    // la toma dentro de la bañera (V1) y un interruptor en V2
+    m.toma.x = 100; m.toma.y = 520;
+    const sw2 = mkComp('int', 270, 470);
+    update();
+    if (!__t.hasMsg('err', 'volumen 1 del baño')) return 'la toma en V1 debería dar error: ' + __t.msgs('err').join(' | ');
+    if (!__t.hasMsg('err', 'mecanismo')) return 'el interruptor en V2 debería dar error';
+    // luz sobre la bañera
+    m.luz.x = 120; m.luz.y = 510;
+    update();
+    if (!__t.hasMsg('err', 'luminaria en el volumen 1')) return 'la luz en V1 debería dar error';
+    // todo fuera de los volúmenes: sin errores de baño
+    m.toma.x = 560; m.toma.y = 600; m.luz.x = 500; m.luz.y = 850; m.int1.x = 560; m.int1.y = 850;
+    S.comps = S.comps.filter(c => c.id !== sw2.id);
+    update();
+    return SIM.msgs.some(x => (x.itc || '').includes('ITC-BT-27') && x.lvl === 'err') ? 'fuera de los volúmenes no debería haber errores de baño' : null;
+  })],
+
+  ['reto r12: el baño reglamentario se supera', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    mkComp('banera', 60, 500);
+    // interruptor y toma al volumen 3; la luz queda en V3
+    m.int1.x = 362; m.int1.y = 520;
+    m.toma.x = 354; m.toma.y = 680;
+    update();
+    const r = RETOS.find(x => x.id === 'r12');
+    const v = r.check();
+    if (v !== true) return 'el baño reglamentario debería superar el reto: ' + v;
+    // con la toma junto a la bañera debe fallar
+    m.toma.x = 100; m.toma.y = 520;
+    update();
+    return r.check() === true ? 'con la toma en V1 no debería validar' : null;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();
