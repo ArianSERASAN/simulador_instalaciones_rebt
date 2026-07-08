@@ -196,6 +196,7 @@ function menuModal() {
     <button class="mItem" data-m="examen"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z M15 3v4h4" fill="none" stroke="#f4b942" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="#f4b942" stroke-width="2" stroke-linecap="round"/></svg></span><div>Examen tipo test<small>Preguntas IBTB con corrección razonada y repaso de falladas</small></div></button>
     <button class="mItem" data-m="proyecto"><span class="mi-ico"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="#8ecdf7" stroke-width="2"/><path d="M8 7h8M8 11h4M8 15h5" stroke="#8ecdf7" stroke-width="2" stroke-linecap="round"/></svg></span><div>Proyecto: previsión de cargas<small>Coeficiente de simultaneidad y potencia del edificio (ITC-BT-10)</small></div></button>
     <button class="mItem" data-m="ayuda"><span class="mi-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#8fa0b5" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 1.9m0 2.9v.2" fill="none" stroke="#8fa0b5" stroke-width="2" stroke-linecap="round"/></svg></span><div>Cómo se usa<small>Gestos, cableado y modos</small></div></button>
+    <button class="mItem" data-m="rehacer"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M16 6l4 4-4 4M20 10H10a6 6 0 0 0 0 12h3" fill="none" stroke="#8fa0b5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div>Rehacer<small>Recuperar lo último deshecho (el botón ↩ de arriba deshace)</small></div></button>
     <button class="mItem" data-m="nuevo"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#e5533d" stroke-width="2.4" stroke-linecap="round"/></svg></span><div>Nuevo montaje<small>Vaciar el lienzo y empezar de cero</small></div></button>`);
 }
 
@@ -273,6 +274,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'esquema') esquemaModal();
   else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
   else if (m === 'lab') toggleLab(!S.lab);
+  else if (m === 'rehacer') { redo(); closeModal(); }
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
   else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }
@@ -287,6 +289,7 @@ modalBody.addEventListener('click', e => {
   }
   else if (m === 'cargar') {
     const saves = getSaves();
+    histSnap();
     if (saves[id] && deserialize(saves[id].data)) {
       aplicarModoVista(); update(); buildPalette(); closeModal(); toast('Cargado «' + id + '»');
     } else toast('No se pudo cargar ese montaje');
@@ -299,6 +302,7 @@ modalBody.addEventListener('click', e => {
 });
 
 function nuevoMontaje() {
+  histSnap();
   S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
   if (S.lab) seedLab(); else seed();
   fitCamera(); update(); buildPalette();

@@ -78,6 +78,11 @@ function compSVG(c) {
     s += `<g class="tripmark"><rect x="${d.w / 2 - 30}" y="${d.h / 2 - 10}" width="60" height="20" rx="5" fill="#e5533d" opacity=".92"/>
       <text x="${d.w / 2}" y="${d.h / 2 + 4}" font-size="10" fill="#fff" text-anchor="middle" font-weight="800">QUEMADO</text></g>`;
   }
+  if (c.props && c.props.tag) {
+    const tw = c.props.tag.length * 6.2 + 12;
+    s += `<g pointer-events="none"><rect x="${d.w / 2 - tw / 2}" y="-34" width="${tw}" height="17" rx="8" fill="#2b3242" opacity=".92"/>
+      <text x="${d.w / 2}" y="-22" font-size="9.5" fill="#ffd85e" text-anchor="middle" font-weight="700">${esc(c.props.tag)}</text></g>`;
+  }
   for (const t of d.terms) {
     const hot = wireDraft && wireDraft.from.c === c.id && wireDraft.from.t === t.id;
     s += `<circle class="term" cx="${t.x}" cy="${t.y}" r="6.2" fill="${KIND_COL[t.kind]}"/>`;
@@ -134,9 +139,39 @@ function autosave() {
 }
 function update() { SIM = S.lab ? simulateLab() : simulate(); render(); autosave(); }
 
+/* ---------- historial: deshacer / rehacer (solo edición, no maniobras) ---------- */
+const HIST = { back: [], fwd: [] };
+function histSnap() {                       // llamar SIEMPRE antes de mutar
+  HIST.back.push(serialize());
+  if (HIST.back.length > 50) HIST.back.shift();
+  HIST.fwd = [];
+}
+function histClear() { HIST.back = []; HIST.fwd = []; }
+function histRestore(dump) {
+  const cam = { ...S.cam }, mode = S.mode, view = S.view;   // no tocar cámara ni modo
+  if (!deserialize(dump)) return false;
+  S.cam = cam; S.mode = mode; S.view = view;
+  aplicarModoVista(); update(); buildPalette(); closeSheet();
+  return true;
+}
+function undo() {
+  if (!HIST.back.length) { toast('Nada que deshacer'); return; }
+  HIST.fwd.push(serialize());
+  histRestore(HIST.back.pop());
+  toast('Deshecho' + (HIST.back.length ? '' : ' (no queda más historial)'));
+}
+function redo() {
+  if (!HIST.fwd.length) { toast('Nada que rehacer'); return; }
+  HIST.back.push(serialize());
+  histRestore(HIST.fwd.pop());
+  toast('Rehecho');
+}
+$('#btnUndo').addEventListener('click', undo);
+
 function addComp(type, x, y) {
   const d = DEFS[type];
   if (d.unico && S.comps.some(c => c.type === type)) { toast('Ya hay una ' + d.corto + ' en el montaje'); return null; }
+  histSnap();
   const c = { id: 'c' + (S.nextId++), type, x: 0, y: 0, props: d.props(), state: d.state() };
   placeComp(c, x, y);
   S.comps.push(c);
@@ -167,6 +202,7 @@ function freeDinX(d) {
   return CUADRO.x + CUADRO.w / 2;
 }
 function delComp(id) {
+  histSnap();
   S.comps = S.comps.filter(c => c.id !== id);
   S.wires = S.wires.filter(w => w.a.c !== id && w.b.c !== id);
   if (S.sel === id) S.sel = null;
@@ -187,10 +223,12 @@ function addWire(a, b) {
   else if (ka === 'L3' || kb === 'L3') color = 'gris';
   else if (ka === 'X' && kb === 'X') color = 'negro';
   else if (ka === 'X' || kb === 'X') color = (ka === 'L' || kb === 'L') ? 'marron' : 'negro';
+  histSnap();
   S.wires.push({ id: 'w' + (S.nextId++), a, b, color, sec: 2.5, len: 5 });
   update();
 }
 function delWire(id) {
+  histSnap();
   S.wires = S.wires.filter(w => w.id !== id);
   if (S.selWire === id) S.selWire = null;
   update();
@@ -323,7 +361,7 @@ svg.addEventListener('pointermove', e => {
     S.cam.ty = gest.cam0.ty + dy;
     updateCamera();
   } else if (gest.type === 'drag') {
-    if (dist > 7) gest.moved = true;
+    if (dist > 7 && !gest.moved) { gest.moved = true; histSnap(); }
     if (gest.moved) {
       const c = byId(gest.id);
       if (!c) return;
@@ -340,6 +378,7 @@ svg.addEventListener('pointermove', e => {
     if (dist > 9) {
       const c = byId(gest.act.c);
       if (c) {
+        histSnap();
         const g0 = screenToWorld(gest.sx, gest.sy);
         const wasMomentary = gest.momentary;
         gest = { type: 'drag', id: c.id, offx: g0.x - c.x, offy: g0.y - c.y, moved: true, sx: gest.sx, sy: gest.sy };
@@ -507,10 +546,13 @@ function showFicha(c) {
   }
   if (d.fichaExtra) h += d.fichaExtra(c, inst);
 
+  h += `<div class="shRow"><label>Etiqueta</label><input class="nameIn" id="tagIn" maxlength="18" placeholder="p. ej. C2 cocina · 2ºA" value="${esc(c.props.tag || '')}"></div>`;
+
   h += `<div class="shBtns">`;
   if (c.state.quemado) h += `<button class="bigbtn grn" data-cb="reparar">Sustituir</button>`;
   if (d.act === 'palanca') h += `<button class="bigbtn pri" data-cb="accionar">${c.state.trip ? 'Rearmar' : (c.state.on ? 'Bajar palanca' : 'Subir palanca')}</button>`;
   if (d.act === 'tecla') h += `<button class="bigbtn pri" data-cb="accionar">Accionar</button>`;
+  if (!d.unico) h += `<button class="bigbtn sec" data-cb="duplicar">Duplicar</button>`;
   h += `<button class="bigbtn red" data-cb="borrar">Eliminar</button></div>`;
 
   sheetBody.dataset.comp = c.id;
@@ -535,6 +577,16 @@ function showWireSheet(w) {
   openSheet(h);
 }
 
+/* etiqueta editable del componente */
+sheetBody.addEventListener('focusin', e => { if (e.target.id === 'tagIn') histSnap(); });
+sheetBody.addEventListener('input', e => {
+  if (e.target.id !== 'tagIn' || !sheetBody.dataset.comp) return;
+  const c = byId(sheetBody.dataset.comp);
+  if (!c) return;
+  c.props.tag = e.target.value.trim();
+  render(); autosave();
+});
+
 /* delegación de la hoja */
 sheetBody.addEventListener('click', e => {
   const b = e.target.closest('[data-cb]');
@@ -543,6 +595,19 @@ sheetBody.addEventListener('click', e => {
   const c = sheetBody.dataset.comp ? byId(sheetBody.dataset.comp) : null;
   const w = sheetBody.dataset.wire ? S.wires.find(x => x.id === sheetBody.dataset.wire) : null;
 
+  if (['piaCal', 'piaCir', 'igaCal', 'pot', 'carga', 'fp', 'prop', 'propStep', 'wcol', 'wsec', 'wlen'].includes(cb)) histSnap();
+
+  if (cb === 'duplicar' && c) {
+    const d = defOf(c);
+    histSnap();
+    const n = { id: 'c' + (S.nextId++), type: c.type, x: 0, y: 0, props: JSON.parse(JSON.stringify(c.props)), state: d.state() };
+    placeComp(n, c.x + d.w / 2 + 30, c.y + d.h / 2 + 26);
+    S.comps.push(n);
+    S.sel = n.id;
+    update(); buildPalette(); showFicha(n);
+    toast(d.corto + ' duplicado');
+    return;
+  }
   if (cb === 'piaCal' && c) c.props.calibre = Number(v);
   else if (cb === 'piaCir' && c) c.props.circuito = v;
   else if (cb === 'igaCal' && c) c.props.calibre = Number(v);

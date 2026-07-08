@@ -4,6 +4,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [Sin publicar]
+
+### Añadido — Fase 8: edición cómoda e integración continua
+- **Deshacer** (botón ↩ en la barra superior) y **Rehacer** (menú): historial
+  de 50 pasos que cubre añadir/mover/borrar componentes y cables, cambios de
+  propiedades, cargar montajes y generar averías. No cruza entre el
+  simulador y el laboratorio.
+- **Duplicar componente** desde su ficha (copia propiedades, no el estado).
+- **Etiquetas editables** en cualquier componente («C1 salón», «2ºA»…),
+  visibles como rótulo sobre el aparato y conservadas al guardar.
+- **CI en GitHub Actions** (`.github/workflows/tests.yml`): las pruebas
+  headless se ejecutan en cada push a `main` y en cada pull request;
+  `tests/run.mjs` ahora localiza Playwright también en `node_modules` local.
+- Barra superior compactada en pantallas estrechas. Caché SW `rebt-v14`.
+
 ## [v2.0.0] — Enlace ITC-BT-12 completo, trifásica, laboratorio y examen
 
 ### Añadido — Fase 7: examen IBTB y previsión de cargas

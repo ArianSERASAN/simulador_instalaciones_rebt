@@ -13,8 +13,15 @@ import { extname, join, normalize } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 
-const require = createRequire('/opt/node22/lib/node_modules/');
-const { chromium } = require('playwright');
+/* playwright: primero el node_modules local (CI), después el global del sistema */
+let chromium = null;
+for (const base of [import.meta.url, '/opt/node22/lib/node_modules/']) {
+  try { ({ chromium } = createRequire(base)('playwright')); break; } catch (e) {}
+}
+if (!chromium) {
+  console.error('No se encuentra playwright: ejecuta `npm install playwright` o usa el node del sistema.');
+  process.exit(1);
+}
 
 const ROOT = normalize(join(fileURLToPath(import.meta.url), '..', '..'));
 const MIME = {
@@ -735,6 +742,64 @@ const TESTS = [
     const r2b = previsionEdificio({ nBas: 0, nElev: 0, wServicios: 0, m2Locales: 20, m2GarajeNat: 0, m2GarajeForz: 0 });
     if (r2b.locales !== 3450) return 'un local pequeño aplica el mínimo de 3.450 W';
     return null;
+  })],
+
+  /* ---------- Fase 8: deshacer/rehacer, duplicar, etiquetas ---------- */
+
+  ['deshacer y rehacer restauran el montaje', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    update();
+    const n = S.comps.length;
+    delComp(m.luz.id);
+    if (S.comps.length !== n - 1) return 'delComp debería eliminar la luz';
+    undo();
+    if (S.comps.length !== n || !S.comps.some(c => c.type === 'luz')) return 'undo debería restaurar la luz';
+    redo();
+    if (S.comps.length !== n - 1) return 'redo debería volver a eliminarla';
+    undo();
+    return S.comps.length === n ? null : 'el segundo undo debería restaurar de nuevo';
+  })],
+
+  ['deshacer también recupera cables y propiedades', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    update();
+    const nw = S.wires.length;
+    delWire(S.wires[0].id);
+    histSnap(); m.pia2.props.calibre = 32;
+    undo();
+    const p2 = byId(m.pia2.id);   // deserialize recrea los objetos
+    if (!p2 || p2.props.calibre !== 16) return 'undo debería restaurar el calibre 16';
+    undo();
+    return S.wires.length === nw ? null : 'undo debería restaurar el cable borrado';
+  })],
+
+  ['duplicar conserva las propiedades y crea id nuevo', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const pia = mkComp('pia', 270, DIN_Y, { calibre: 25, circuito: 'C3' }, { on: true });
+    update();
+    // duplicado manual por la misma vía que el botón de la ficha
+    const d = DEFS.pia;
+    const n2 = { id: 'c' + (S.nextId++), type: 'pia', x: 0, y: 0, props: JSON.parse(JSON.stringify(pia.props)), state: d.state() };
+    placeComp(n2, pia.x + 60, pia.y + 40);
+    S.comps.push(n2); update();
+    if (n2.props.calibre !== 25 || n2.props.circuito !== 'C3') return 'el duplicado debería copiar las props';
+    if (n2.id === pia.id) return 'el duplicado necesita id propio';
+    n2.props.calibre = 10;
+    return pia.props.calibre === 25 ? null : 'las props deben ser copias independientes';
+  })],
+
+  ['las etiquetas se guardan y sobreviven al guardado', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    m.pia1.props.tag = 'C1 salón';
+    update();
+    const s = serialize();
+    __t.reset();
+    deserialize(s);
+    const pia = S.comps.find(c => c.props.tag === 'C1 salón');
+    return pia ? null : 'la etiqueta debería sobrevivir a serialize/deserialize';
   })],
 
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {

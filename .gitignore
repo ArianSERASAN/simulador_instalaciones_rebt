@@ -1,0 +1,4 @@
+# dependencias solo para CI/local (la app no usa ninguna)
+node_modules/
+package.json
+package-lock.json

@@ -109,12 +109,49 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
 
 ---
 
+# Segundo bloque (confirmado)
+
+## Fase 8 — Edición cómoda + integración continua
+
+- **Deshacer/rehacer** (historial de 50 pasos; deshacer en la barra superior,
+  rehacer en el menú). **Duplicar componente** desde su ficha. **Etiquetas
+  editables** en cualquier componente («C2 cocina», «2ºA»…).
+- **CI en GitHub Actions**: `tests/run.mjs` se ejecuta en cada push.
+
+## Fase 9 — Diagnóstico real
+
+- **Multímetro virtual** en el simulador REBT: puntas de prueba para medir
+  tensión y continuidad entre dos bornes cualesquiera.
+- **Camino de la corriente resaltado**: al tocar un receptor encendido se
+  ilumina su recorrido completo fase → receptor → neutro.
+
+## Fase 10 — Averías generativas
+
+- Generador de fallos aleatorios sobre los montajes de referencia (cable
+  quitado, neutro cortado, fusible fundido, sección cambiada, polaridad…),
+  con dificultad progresiva. Rejugabilidad ilimitada del Modo Avería.
+
+## Fase 11 — Compartir y capturar
+
+- Exportar/importar montajes como archivo (y compartir con la hoja nativa
+  del móvil). Captura del montaje como imagen.
+
+## Fase 12 — Baños (ITC-BT-27)
+
+- Volúmenes 0/1/2 dibujables en el plano y validación de lo que se puede
+  instalar en cada uno. Reto y preguntas de examen asociados.
+
+## Fase 13 — Progreso y banco de examen ampliado
+
+- Panel «Tu progreso»: retos, averías, exámenes y falladas en una pantalla.
+- Banco del examen ampliado a 100+ preguntas por bloques del temario.
+
+---
+
 ## Posibles fases futuras (no comprometidas)
 
-- Más averías de edificio y del laboratorio; retos de baño (ITC-BT-27).
-- Volúmenes de baño dibujables en el plano.
 - MNA en corriente alterna con fasores para el simulador REBT completo.
-- Exportar/importar montajes como archivo (compartir entre dispositivos).
+- Más retos de edificio y laboratorio.
 
 ---
 

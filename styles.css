@@ -24,7 +24,11 @@ button:active{opacity:.75}
 #segMode button.act{background:#3a72d4;color:#fff}
 body.lab #segMode{display:none}
 body.lab #appTitle{color:#37c26e}
-@media (max-width:430px){#appTitle{display:none}}
+@media (max-width:430px){
+  #appTitle{display:none}
+  .iconbtn{min-width:38px;min-height:40px}
+  #segMode button{padding:0 6px;font-size:11px}
+}
 .iconbtn{
   min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
   border-radius:10px;background:#1e2735;

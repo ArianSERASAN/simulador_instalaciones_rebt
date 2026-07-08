@@ -168,6 +168,7 @@ sheetBody.addEventListener('click', e => {
   if (!b || !sheetBody.dataset.comp) return;
   const c = byId(sheetBody.dataset.comp);
   if (!c || c.type !== 'bombilla') return;
+  histSnap();
   c.props.vn = Number(b.dataset.v); c.props.wn = Number(b.dataset.w);
   update(); showFicha(byId(c.id));
 });
@@ -343,6 +344,7 @@ function toggleLab(on) {
     if (on) seedLab(); else seed();
   }
   S.lab = on;                    // deserialize no toca S.lab, pero por claridad
+  histClear();                   // el historial no cruza de un espacio al otro
   S.palCat = on ? 'lab' : 'cuadro';
   document.body.classList.toggle('lab', on);
   $('#appTitle').textContent = on ? 'LAB' : 'REBT';
