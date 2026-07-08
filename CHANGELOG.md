@@ -4,7 +4,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
-## [Sin publicar]
+## [v2.1.0] — Diagnóstico real, averías infinitas y estudio guiado
 
 ### Añadido — Fase 13: panel de progreso y banco de examen ampliado
 - **«Tu progreso»** en el menú: retos, averías fijas, averías generadas por
