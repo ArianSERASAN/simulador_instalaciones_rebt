@@ -6,6 +6,17 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 10: averías generadas al azar
+- En el **Modo Avería**, tres botones nuevos generan una avería aleatoria de
+  **nivel 1 (fácil), 2 (media) o 3 (difícil, en modo Instalador)**: se elige
+  un montaje de referencia (vivienda, chalet o edificio) y se le inyectan
+  1–3 fallos de un catálogo (cable quitado, tierra perdida, fusible fundido,
+  fase y neutro invertidos, color no reglamentario, PIA sobredimensionado,
+  sección insuficiente). Cada avería se valida como **detectable** antes de
+  entregarse, y el parte de síntomas se redacta según los fallos.
+- Contador de averías generadas resueltas por nivel. Rejugable sin límite.
+- Caché SW `rebt-v16`.
+
 ### Añadido — Fase 9: multímetro, camino de la corriente y errores con solución
 - **Multímetro virtual** (menú): puntas de prueba roja y negra; toca dos
   bornes cualesquiera y lee **tensión y continuidad** (230 V fase-neutro,

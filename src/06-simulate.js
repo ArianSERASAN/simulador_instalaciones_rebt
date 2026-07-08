@@ -538,10 +538,11 @@ function renderResults() {
   /* modo avería: solo el síntoma, sin diagnóstico */
   if (S.averia) {
     const a = AVERIAS.find(x => x.id === S.averia);
+    const sint = a ? esc(a.s) : (S.averiaGen ? S.averiaGen.sintomas.map(esc).join('<br><br>') : '');
     dot.className = 'warn';
     txt.textContent = 'Avería: localiza el fallo';
-    $('#resBody').innerHTML = `<div class="msg warn"><span class="mdot"></span><div><b>Parte de avería:</b> ${a ? esc(a.s) : ''}</div></div>
-      <div class="msg info"><span class="mdot"></span><div>Inspecciona el montaje, acciona interruptores y protecciones, repara lo que veas mal y pulsa <b>Comprobar</b> arriba. Aquí no hay pistas.</div></div>`;
+    $('#resBody').innerHTML = `<div class="msg warn"><span class="mdot"></span><div><b>Parte de avería:</b><br>${sint}</div></div>
+      <div class="msg info"><span class="mdot"></span><div>Inspecciona el montaje, usa el <b>multímetro</b> (menú), acciona interruptores y protecciones, repara lo que veas mal y pulsa <b>Comprobar</b> arriba. Aquí no hay pistas.</div></div>`;
     return;
   }
   /* modo reglamento: sin pistas en vivo; se evalúa con el boletín */

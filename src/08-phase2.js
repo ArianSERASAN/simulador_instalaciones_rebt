@@ -1116,6 +1116,130 @@ const AVERIAS = [
 ];
 
 function averiasDone() { try { return JSON.parse(store.get('rebt.averias') || '{}') || {}; } catch (e) { return {}; } }
+function averiasGenDone() { try { return JSON.parse(store.get('rebt.averiasGen') || '{}') || {}; } catch (e) { return {}; } }
+
+/* ==================================================================
+   AVERÍAS GENERATIVAS — fallos aleatorios con niveles de dificultad
+   ================================================================== */
+const rndDe = a => a[Math.floor(Math.random() * a.length)];
+
+/* mutadores: aplican un fallo al montaje actual y devuelven el síntoma
+   que contaría el cliente (o null si no son aplicables aquí) */
+const AVERIA_MUTS = [
+  { id: 'cable', min: 1, f() {
+    const cands = S.wires.filter(w => [w.a, w.b].some(e => {
+      const c = byId(e.c);
+      return c && ['luz', 'toma', 'cvivienda', 'timbre', 'motor'].includes(c.type) && e.t !== 'PE';
+    }));
+    if (!cands.length) return null;
+    S.wires = S.wires.filter(x => x.id !== rndDe(cands).id);
+    return 'Un punto de la instalación se ha quedado sin servicio, sin que salte ninguna protección.';
+  } },
+  { id: 'tierra', min: 1, f() {
+    const cands = S.wires.filter(w => [w.a, w.b].some(e => {
+      const c = byId(e.c);
+      return c && ['toma', 'cvivienda', 'motor3'].includes(c.type) && e.t === 'PE';
+    }));
+    if (!cands.length) return null;
+    S.wires = S.wires.filter(x => x.id !== rndDe(cands).id);
+    return 'El comprobador de enchufes marca «fallo de tierra» en algún punto.';
+  } },
+  { id: 'fusible', min: 1, f() {
+    const cands = S.comps.filter(c => ['fusi', 'cgp', 'cpm', 'cgp3'].includes(c.type) && !c.state.fundido);
+    if (!cands.length) return null;
+    rndDe(cands).state.fundido = true;
+    return 'Una zona entera está completamente muerta y nadie ha tocado ningún cuadro.';
+  } },
+  { id: 'inv', min: 1, f() {
+    for (const luz of S.comps.filter(c => c.type === 'luz')) {
+      const wL = S.wires.find(w => (w.a.c === luz.id && w.a.t === 'L') || (w.b.c === luz.id && w.b.t === 'L'));
+      const wN = S.wires.find(w => (w.a.c === luz.id && w.a.t === 'N') || (w.b.c === luz.id && w.b.t === 'N'));
+      if (!wL || !wN) continue;
+      const eL = wL.a.c === luz.id ? wL.a : wL.b;
+      const eN = wN.a.c === luz.id ? wN.a : wN.b;
+      eL.t = 'N'; eN.t = 'L';
+      return 'El cliente notó un cosquilleo al cambiar una bombilla con el interruptor apagado.';
+    }
+    return null;
+  } },
+  { id: 'color', min: 1, f() {
+    const cands = S.wires.filter(w => w.color === 'azul');
+    if (!cands.length) return null;
+    rndDe(cands).color = 'marron';
+    return 'Todo funciona, pero el instalador anterior dejó algo no reglamentario a la vista.';
+  } },
+  { id: 'calibre', min: 3, f() {
+    const cands = S.comps.filter(c => c.type === 'pia' && c.props.calibre <= 20);
+    if (!cands.length) return null;
+    const pia = rndDe(cands);
+    pia.props.calibre = 40; pia.props.circuito = '';
+    const toma = S.comps.find(c => c.type === 'toma');
+    if (toma) toma.props.carga = Math.max(toma.props.carga, 2200);
+    return 'Huele a plástico caliente cerca de una regleta cuando trabaja un rato, y nunca salta nada.';
+  } },
+  { id: 'seccion', min: 3, f() {
+    const cands = S.wires.filter(w => w.sec >= 6 && w.sec <= 10);
+    if (!cands.length) return null;
+    const w = rndDe(cands);
+    w.sec = 1.5; w.len = Math.max(w.len, 25);
+    return 'Cuando entran cargas grandes las luces pierden fuerza, y un tramo de cable se calienta.';
+  } }
+];
+
+function checkAveriaGen() {
+  update();
+  const g = S.averiaGen;
+  if (!g) return 'No hay avería generada.';
+  const ev = pureEval();
+  const lucesOK = S.comps.filter(c => c.type === 'luz' && ev.lit[c.id]).length;
+  if (lucesOK < g.luces) return 'Hay algún punto de luz que aún no puede encenderse.';
+  const vivsOK = S.comps.filter(c => c.type === 'cvivienda' && ev.lit[c.id]).length;
+  if (vivsOK < g.vivs) return 'Alguna vivienda sigue sin tensión: repasa su camino desde la centralización.';
+  const tomasOK = S.comps.filter(c => c.type === 'toma' && SIM.tomas[c.id] && SIM.tomas[c.id].tension && SIM.tomas[c.id].tierra).length;
+  if (tomasOK < g.tomas) return 'Alguna toma sigue sin tensión o sin su tierra.';
+  if (hayErrores()) return 'Todavía queda algún defecto (hay errores en la instalación).';
+  if (SIM.msgs.some(m => m.lvl === 'warn')) return 'Funciona, pero queda algo no reglamentario por corregir.';
+  return true;
+}
+
+function generarAveria(nivel) {
+  if (S.lab) toggleLab(false);
+  histSnap();
+  setMode(nivel >= 3 ? 'instalador' : 'aprendiz');
+  const bases = nivel === 1 ? [montarVivienda, montarChalet] : [montarVivienda, montarChalet, montarEdificio, montarEdificio2];
+  const nFallos = nivel === 1 ? 1 : (nivel === 2 ? 2 : 2 + Math.round(Math.random()));
+  const pool = AVERIA_MUTS.filter(m => m.min <= nivel);
+  let sintomas = [];
+  for (let intento = 0; intento < 10; intento++) {
+    rndDe(bases)();
+    sintomas = [];
+    const usados = new Set();
+    let tries = 0;
+    while (sintomas.length < nFallos && tries++ < 30) {
+      const mut = rndDe(pool);
+      if (usados.has(mut.id)) continue;
+      const s = mut.f();
+      if (s) { usados.add(mut.id); sintomas.push(s); }
+    }
+    S.averiaGen = {
+      nivel, sintomas,
+      luces: S.comps.filter(c => c.type === 'luz').length,
+      tomas: S.comps.filter(c => c.type === 'toma').length,
+      vivs: S.comps.filter(c => c.type === 'cvivienda').length
+    };
+    if (sintomas.length && checkAveriaGen() !== true) break;   // detectable: vale
+  }
+  S.reto = null;
+  S.averia = 'gen';
+  $('#retoBar').classList.add('on');
+  $('#retoTitle').textContent = 'Avería generada · nivel ' + nivel;
+  closeModal(); closeSheet();
+  fitCamera(); update(); buildPalette();
+  openModal(`<div class="mTitle">Avería generada · nivel ${nivel}</div><div class="help">
+    <p><b>Parte de avería:</b></p><p>${sintomas.map(esc).join('<br><br>')}</p>
+    <p>${sintomas.length > 1 ? `Hay <b>${sintomas.length} fallos</b> distintos.` : 'Hay <b>un</b> fallo.'} Inspecciona, usa el <b>multímetro</b> del menú y repara. Después pulsa <b>Comprobar</b>.</p></div>
+    <button class="bigbtn pri" data-m="cerrar">Manos a la obra</button>`);
+}
 
 function averiasModal() {
   const done = averiasDone();
@@ -1125,7 +1249,15 @@ function averiasModal() {
     `<button class="mItem" data-m="averia" data-id="${a.id}">
       <div>${esc(a.t)}${a.modo === 'instalador' ? '<small>Modo Instalador</small>' : ''}</div>
       ${done[a.id] ? '<span class="din">✓ resuelta</span>' : ''}</button>`).join('');
-  h += `<div style="height:10px"></div><button class="bigbtn pri" data-m="averia" data-id="azar">Una al azar</button>`;
+  const gen = averiasGenDone();
+  const nGen = (gen[1] || 0) + (gen[2] || 0) + (gen[3] || 0);
+  h += `<div style="height:12px"></div>
+    <div class="help"><p><b>Avería generada al azar</b> — cada vez es distinta (montaje, fallo y síntomas)${nGen ? ` · resueltas: <b>${nGen}</b>` : ''}:</p></div>
+    <div class="chips">
+      <button class="chip" data-m="averiaGen" data-id="1">Nivel 1 · fácil${gen[1] ? ' · ' + gen[1] + ' ✓' : ''}</button>
+      <button class="chip" data-m="averiaGen" data-id="2">Nivel 2 · media${gen[2] ? ' · ' + gen[2] + ' ✓' : ''}</button>
+      <button class="chip" data-m="averiaGen" data-id="3">Nivel 3 · difícil${gen[3] ? ' · ' + gen[3] + ' ✓' : ''}</button>
+    </div>`;
   openModal(h);
 }
 
@@ -1149,6 +1281,23 @@ function startAveria(id) {
 }
 
 function checkAveria() {
+  if (S.averia === 'gen') {
+    const v = checkAveriaGen();
+    if (v === true) {
+      const nivel = S.averiaGen ? S.averiaGen.nivel : 1;
+      const st = averiasGenDone(); st[nivel] = (st[nivel] || 0) + 1;
+      store.set('rebt.averiasGen', JSON.stringify(st));
+      exitReto(); S.averiaGen = null;
+      openModal(`<div class="mTitle">Avería resuelta</div><div class="help">
+        <p>Reparación correcta y conforme. Diagnóstico de nivel ${nivel} superado.</p></div>
+        <button class="bigbtn grn" data-m="averiaGen" data-id="${nivel}">Otra de nivel ${nivel}</button>
+        <div style="height:8px"></div>
+        <button class="bigbtn sec" data-m="cerrar">Seguir montando</button>`);
+    } else {
+      toast(typeof v === 'string' ? v : 'La avería sigue sin resolverse.');
+    }
+    return;
+  }
   const a = AVERIAS.find(x => x.id === S.averia);
   if (!a) return;
   update();

@@ -888,6 +888,53 @@ const TESTS = [
     return c && c.type === 'int' ? null : 'el señalado debería ser el interruptor';
   })],
 
+  /* ---------- Fase 10: averías generativas ---------- */
+
+  ['avería generada: siempre detectable, en tres niveles', async page => page.evaluate(() => {
+    for (let i = 0; i < 12; i++) {
+      const nivel = (i % 3) + 1;
+      __t.reset(); histClear();
+      generarAveria(nivel);
+      closeModal();
+      if (S.averia !== 'gen' || !S.averiaGen) return 'debería quedar activa la avería generada';
+      if (!S.averiaGen.sintomas.length) return 'la avería debe tener síntomas';
+      if (nivel >= 3 && S.averiaGen.sintomas.length < 2) return 'el nivel 3 debe tener al menos 2 fallos';
+      if (checkAveriaGen() === true) return `intento ${i}: la avería generada (nivel ${nivel}) no es detectable`;
+    }
+    exitReto();
+    return null;
+  })],
+
+  ['avería generada: reparar el fallo la da por resuelta', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    // fallo determinista: tierra de la toma quitada sobre la vivienda de referencia
+    const m = montarVivienda();
+    const mut = AVERIA_MUTS.find(x => x.id === 'tierra');
+    const sintoma = mut.f();
+    if (!sintoma) return 'el mutador de tierra debería aplicar en la vivienda';
+    S.averia = 'gen';
+    S.averiaGen = { nivel: 1, sintomas: [sintoma], luces: 1, tomas: 1, vivs: 0 };
+    if (checkAveriaGen() === true) return 'con la tierra quitada no debería validar';
+    mkWire(m.toma, 'PE', m.borne, 'p2', 'tierra', 2.5);   // reparación
+    const v = checkAveriaGen();
+    exitReto();
+    return v === true ? null : 'tras reparar debería validar, dice: ' + v;
+  })],
+
+  ['avería generada: el fusible fundido se detecta y se repara', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    montarEdificio();
+    const mut = AVERIA_MUTS.find(x => x.id === 'fusible');
+    if (!mut.f()) return 'el mutador de fusible debería aplicar en el edificio';
+    S.averia = 'gen';
+    S.averiaGen = { nivel: 2, sintomas: ['x'], luces: 0, tomas: 0, vivs: 3 };
+    if (checkAveriaGen() === true) return 'con un fusible fundido no debería validar';
+    for (const c of S.comps) if (c.state && c.state.fundido) c.state.fundido = false;
+    const v = checkAveriaGen();
+    exitReto();
+    return v === true ? null : 'tras sustituir el fusible debería validar, dice: ' + v;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();

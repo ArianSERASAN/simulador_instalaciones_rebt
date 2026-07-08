@@ -119,7 +119,7 @@ function startReto(id) {
   openModal(`<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p></div>
     <button class="bigbtn pri" data-m="cerrar">Al lío</button>`);
 }
-function exitReto() { S.reto = null; S.averia = null; $('#retoBar').classList.remove('on'); update(); }
+function exitReto() { S.reto = null; S.averia = null; S.averiaGen = null; $('#retoBar').classList.remove('on'); update(); }
 $('#btnRetoExit').addEventListener('click', exitReto);
 $('#btnRetoCheck').addEventListener('click', () => {
   if (S.averia) { checkAveria(); return; }
@@ -270,6 +270,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'reto') startReto(id);
   else if (m === 'averias') averiasModal();
   else if (m === 'averia') startAveria(id);
+  else if (m === 'averiaGen') generarAveria(Number(id));
   else if (m === 'montajes') montajesModal();
   else if (m === 'tabla') tablaModal();
   else if (m === 'esquema') esquemaModal();
