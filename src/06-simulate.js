@@ -43,20 +43,21 @@ function simulate() {
       }
       const donde = esFF ? `¡Cortocircuito entre dos fases (${V_LL} V)!` : '¡Cortocircuito! Fase y neutro se tocan sin pasar por ningún receptor.';
       if (disp) {
+        const fixCorto = 'La corriente encuentra un atajo sin pasar por ningún receptor y se dispara a miles de amperios. Busca el cable que une directamente los dos conductores (suele ser el último que has tendido), elimínalo y rearma la protección señalada.';
         if (disp.type === 'fusi') {
           disp.state.fundido = true;
-          msgs.push({ lvl: 'err', txt: `${donde} Se ha fundido el fusible de seguridad de esa derivación: corrige el cableado y sustitúyelo (tócalo).`, itc: 'ITC-BT-16 · ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Se ha fundido el fusible de seguridad de esa derivación: corrige el cableado y sustitúyelo (tócalo).`, itc: 'ITC-BT-16 · ITC-BT-22', hl: { c: [disp.id] }, fix: fixCorto });
         } else if (disp.type === 'cgp' || disp.type === 'cpm' || disp.type === 'cgp3') {
           disp.state.fundido = true;
-          msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la ${disp.type === 'cpm' ? 'CPM' : 'CGP'}: corrige el cableado y sustitúyelos (tócala).`, itc: 'ITC-BT-13 · ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la ${disp.type === 'cpm' ? 'CPM' : 'CGP'}: corrige el cableado y sustitúyelos (tócala).`, itc: 'ITC-BT-13 · ITC-BT-22', hl: { c: [disp.id] }, fix: fixCorto });
         } else {
           disp.state.trip = true; disp.state.on = false;
           const quien = disp.type === 'iga' ? 'el IGA' : (disp.type === 'icp' ? 'el ICP' : 'el PIA de ' + disp.props.calibre + ' A');
-          msgs.push({ lvl: 'err', txt: `${donde} Ha disparado ${quien}: corrige el cableado y reármalo.`, itc: 'ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Ha disparado ${quien}: corrige el cableado y reármalo.`, itc: 'ITC-BT-22', hl: { c: [disp.id] }, fix: fixCorto });
         }
         continue;
       }
-      msgs.push({ lvl: 'err', txt: `${donde} No hay ninguna protección conectada que pueda despejarlo.`, itc: 'ITC-BT-22' });
+      msgs.push({ lvl: 'err', txt: `${donde} No hay ninguna protección conectada que pueda despejarlo.`, itc: 'ITC-BT-22', fix: 'Quita el cable que une los dos conductores directamente. En una instalación real este fallo fundiría el cableado: por eso siempre debe haber fusibles o magnetotérmicos aguas arriba.' });
       res.fault = 'corto';
       break;
     }
@@ -75,15 +76,19 @@ function simulate() {
         disp.state.trip = true; disp.state.on = false;
         msgs.push({ lvl: 'err', txt: fugaF
           ? 'Derivación a tierra: una fase toca el circuito de protección y el diferencial ha disparado (fuga > 30 mA). Revisa el cableado y reármalo.'
-          : 'El neutro está unido a tierra y el diferencial ha disparado por corriente de fuga. Sepáralos y reármalo.', itc: 'ITC-BT-24' });
+          : 'El neutro está unido a tierra y el diferencial ha disparado por corriente de fuga. Sepáralos y reármalo.', itc: 'ITC-BT-24',
+          hl: { c: [disp.id] },
+          fix: 'Parte de la corriente se escapa por la tierra en vez de volver por el neutro, y el diferencial lo nota (eso mismo te protegería de un calambrazo). Busca el cable que une un conductor activo con algo verde-amarillo o con la pica, quítalo y rearma el diferencial señalado.' });
         continue;
       }
       if (fugaF) {
-        msgs.push({ lvl: 'err', txt: 'Una fase está derivada a tierra y NO hay diferencial que pueda despejar la fuga: riesgo grave de contacto indirecto.', itc: 'ITC-BT-24' });
+        msgs.push({ lvl: 'err', txt: 'Una fase está derivada a tierra y NO hay diferencial que pueda despejar la fuga: riesgo grave de contacto indirecto.', itc: 'ITC-BT-24',
+          fix: 'Hay dos cosas que corregir: (1) quita el cable que une la fase con la tierra, y (2) añade un diferencial de 30 mA en el cuadro: es el aparato que salva vidas cuando ocurre exactamente esto.' });
         res.fault = 'fuga';
         break;
       }
-      msgs.push({ lvl: 'warn', txt: 'El neutro está unido a tierra: cualquier diferencial en servicio dispararía. Sepáralos.', itc: 'ITC-BT-24' });
+      msgs.push({ lvl: 'warn', txt: 'El neutro está unido a tierra: cualquier diferencial en servicio dispararía. Sepáralos.', itc: 'ITC-BT-24',
+        fix: 'Neutro y tierra parecen lo mismo (ambos están a ~0 V) pero cumplen funciones distintas: el neutro es el retorno de la corriente y la tierra solo debe llevar corriente en caso de fallo. Quita el cable que los une.' });
     }
 
     /* --- bobinas (telerruptor, minutero): flanco de subida --- */
@@ -109,7 +114,9 @@ function simulate() {
         const { I } = consumo(ce, fl.lit, fl.tomas);
         if (I > ce.pia.props.calibre + 0.001) {
           ce.pia.state.trip = true; ce.pia.state.on = false;
-          msgs.push({ lvl: 'err', txt: `Sobrecarga: el circuito demanda ${fmtNum(r1(I))} A y su PIA es de ${ce.pia.props.calibre} A → ha disparado. Reparte las cargas o revisa el calibre (recuerda: el calibre lo fija el cable, no el aparato).`, itc: 'ITC-BT-22 · ITC-BT-25' });
+          msgs.push({ lvl: 'err', txt: `Sobrecarga: el circuito demanda ${fmtNum(r1(I))} A y su PIA es de ${ce.pia.props.calibre} A → ha disparado. Reparte las cargas o revisa el calibre (recuerda: el calibre lo fija el cable, no el aparato).`, itc: 'ITC-BT-22 · ITC-BT-25',
+            hl: { c: [ce.pia.id, ...ce.dLoads.map(l => l.id)] },
+            fix: `Suma lo que cuelga de este PIA: I = P / 230. Van ${fmtNum(r1(I))} A y solo admite ${ce.pia.props.calibre} A. Soluciones: apaga o reduce alguna carga, muévela a otro circuito con su propio PIA, o —solo si el cable lo admite— usa un PIA mayor.` });
           alguna = true; break;
         }
       }
@@ -121,7 +128,9 @@ function simulate() {
           if (!phs.includes(uf.f(K(icp.id, 'Li')))) continue;
           if (dt.I > icp.props.calibre + 0.001) {
             icp.state.trip = true; icp.state.on = false;
-            msgs.push({ lvl: 'err', txt: `Has superado la potencia contratada: la instalación demanda ${fmtNum(r1(dt.I))} A y el ICP es de ${icp.props.calibre} A → ha disparado. Apaga algún aparato y reármalo.`, itc: 'ITC-BT-17' });
+            msgs.push({ lvl: 'err', txt: `Has superado la potencia contratada: la instalación demanda ${fmtNum(r1(dt.I))} A y el ICP es de ${icp.props.calibre} A → ha disparado. Apaga algún aparato y reármalo.`, itc: 'ITC-BT-17',
+              hl: { c: [icp.id] },
+              fix: `El ICP no protege nada: solo vigila que no consumas más de lo contratado (${icp.props.calibre} A ≈ ${icp.props.calibre * 230} W). Apaga algún aparato grande, rearma el ICP… o «contrata» más potencia subiendo su calibre en la ficha.` });
             alguna = true; break;
           }
         }
@@ -140,12 +149,16 @@ function simulate() {
       const a = uf.f(K(c.id, 'L')), b = uf.f(K(c.id, 'N'));
       if (phs.includes(a) && phs.includes(b) && a !== b && !c.state.quemado) {
         c.state.quemado = true; quemadoNuevo = true;
-        msgs.push({ lvl: 'err', txt: `Un receptor de 230 V está conectado entre DOS FASES: recibe ${V_LL} V y se ha quemado. Conéctalo entre una fase y el neutro y sustitúyelo desde su ficha.`, itc: 'ITC-BT-10 · ITC-BT-19' });
+        msgs.push({ lvl: 'err', txt: `Un receptor de 230 V está conectado entre DOS FASES: recibe ${V_LL} V y se ha quemado. Conéctalo entre una fase y el neutro y sustitúyelo desde su ficha.`, itc: 'ITC-BT-10 · ITC-BT-19',
+          hl: { c: [c.id] },
+          fix: `Entre dos fases hay ${V_LL} V (las ondas están desfasadas 120° y su diferencia es √3 × 230). Un receptor de 230 V recibe casi el doble de tensión y el cuádruple de potencia: se quema. Cambia el cable de su borne N para que venga del NEUTRO (azul), y pulsa «Sustituir» en su ficha.` });
       }
     }
   }
   if (!quemadoNuevo && S.comps.some(c => c.state && c.state.quemado)) {
-    msgs.push({ lvl: 'warn', txt: 'Hay algún receptor quemado por sobretensión: tócalo y pulsa «Sustituir» en su ficha.' });
+    msgs.push({ lvl: 'warn', txt: 'Hay algún receptor quemado por sobretensión: tócalo y pulsa «Sustituir» en su ficha.',
+      hl: { c: S.comps.filter(c => c.state && c.state.quemado).map(c => c.id) },
+      fix: 'Antes de sustituirlo, asegúrate de haber corregido el cableado que lo quemó (debe recibir una fase y el neutro): si no, el nuevo se quemará igual.' });
   }
 
   const earthSet = new Set(picas.map(p => uf.f(K(p.id, 'PE'))));
@@ -169,19 +182,23 @@ function simulate() {
     if (c.state.quemado) continue;                 // ya avisado arriba
     const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
     if (res.lit[c.id]) {
-      if (uf.f(K(c.id, 'L')) === nu) msgs.push({ lvl: 'warn', txt: 'En un punto de luz, fase y neutro llegan intercambiados: luce igual, pero la fase debe llegar al portalámparas a través del interruptor.', itc: 'ITC-BT-19' });
+      if (uf.f(K(c.id, 'L')) === nu) msgs.push({ lvl: 'warn', txt: 'En un punto de luz, fase y neutro llegan intercambiados: luce igual, pero la fase debe llegar al portalámparas a través del interruptor.', itc: 'ITC-BT-19', hl: { c: [c.id] },
+        fix: 'Con el interruptor apagado, el casquillo seguiría en tensión: peligro al cambiar la bombilla. Intercambia los dos cables de la lámpara: la fase (que viene del interruptor) al borne L y el azul directo del PIA al borne N.' });
       continue;
     }
-    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un punto de luz sin conectar.' }); continue; }
+    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un punto de luz sin conectar.', hl: { c: [c.id] }, fix: 'Necesita dos cables: la fase, que baja del PIA y pasa por el interruptor, y el neutro azul directo desde el PIA.' }); continue; }
     if (potCorto) continue;
     const pa = pot.f(K(c.id, 'L')), pb = pot.f(K(c.id, 'N'));
     if (dosFasesPot(pa, pb)) continue;             // acabaría quemado: mensaje de 400 V
     if (okParPot(pa, pb)) { if (energia && !avisoListas) { msgs.push({ lvl: 'info', txt: 'Hay alguna bombilla lista para funcionar: acciona su interruptor o sube las protecciones.' }); avisoListas = true; } continue; }
     const llegaF = potR.phs.includes(pa) || potR.phs.includes(pb);
     const llegaN = pa === potR.nu || pb === potR.nu;
-    if (!llegaN) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega el neutro: tiéndele un cable azul directo desde la salida N de su PIA.', itc: 'ITC-BT-19' });
-    if (!llegaF) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega la fase: revisa el camino PIA → interruptor → lámpara.', itc: 'ITC-BT-19' });
-    if (llegaF && llegaN) msgs.push({ lvl: 'err', txt: 'Un punto de luz recibe dos veces el mismo conductor: debe recibir una fase y un neutro distintos.' });
+    if (!llegaN) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega el neutro: tiéndele un cable azul directo desde la salida N de su PIA.', itc: 'ITC-BT-19', hl: { c: [c.id] },
+      fix: 'La corriente necesita ida Y vuelta: entra por la fase y regresa por el neutro. Tiende un cable azul desde la salida N (abajo) del PIA hasta el borne N de la lámpara, sin pasar por ningún interruptor.' });
+    if (!llegaF) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega la fase: revisa el camino PIA → interruptor → lámpara.', itc: 'ITC-BT-19', hl: { c: [c.id] },
+      fix: 'Sigue el camino de la fase con el dedo: salida L del PIA → borne de entrada del interruptor → del otro borne del interruptor al borne L de la lámpara. El eslabón que falte es tu avería.' });
+    if (llegaF && llegaN) msgs.push({ lvl: 'err', txt: 'Un punto de luz recibe dos veces el mismo conductor: debe recibir una fase y un neutro distintos.', hl: { c: [c.id] },
+      fix: 'Sus dos bornes están unidos al mismo conductor, así que no hay diferencia de tensión y no puede lucir. Uno de los dos cables sobra: cámbialo por el conductor que falta (fase o neutro).' });
   }
 
   /* --- diagnóstico de tomas --- */
@@ -189,16 +206,20 @@ function simulate() {
     if (!sup) break;
     const st = res.tomas[c.id];
     const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
-    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay una base de enchufe sin conectar.' }); continue; }
-    if (st.tension && st.inv) msgs.push({ lvl: 'info', txt: 'En una toma, fase y neutro llegan intercambiados: funciona (la schuko no tiene polaridad), pero conviene mantener el criterio de conexión.' });
-    if (!st.tierra) msgs.push({ lvl: 'err', txt: 'Una toma de corriente no tiene tierra: une su borne PE con cable verde-amarillo hasta el borne principal y la pica.', itc: 'ITC-BT-18 · ITC-BT-26' });
+    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay una base de enchufe sin conectar.', hl: { c: [c.id] }, fix: 'Una schuko necesita tres cables: fase (L), neutro (N) y tierra (PE, verde-amarillo hasta el borne principal).' }); continue; }
+    if (st.tension && st.inv) msgs.push({ lvl: 'info', txt: 'En una toma, fase y neutro llegan intercambiados: funciona (la schuko no tiene polaridad), pero conviene mantener el criterio de conexión.', hl: { c: [c.id] } });
+    if (!st.tierra) msgs.push({ lvl: 'err', txt: 'Una toma de corriente no tiene tierra: une su borne PE con cable verde-amarillo hasta el borne principal y la pica.', itc: 'ITC-BT-18 · ITC-BT-26', hl: { c: [c.id] },
+      fix: 'Sin tierra, si un aparato deriva a su carcasa, la fuga pasaría por TU cuerpo al tocarlo y el diferencial no actuaría a tiempo. Cablea: borne PE de la toma → borne principal de tierra → pica, todo en verde-amarillo.' });
     if (!st.tension && !potCorto) {
       const pa = pot.f(K(c.id, 'L')), pb = pot.f(K(c.id, 'N'));
-      if (dosFasesPot(pa, pb)) { msgs.push({ lvl: 'err', txt: `Una toma está conectada entre DOS FASES (${V_LL} V): quemaría lo que se enchufe. Debe recibir una fase y el neutro.`, itc: 'ITC-BT-10 · ITC-BT-19' }); continue; }
+      if (dosFasesPot(pa, pb)) { msgs.push({ lvl: 'err', txt: `Una toma está conectada entre DOS FASES (${V_LL} V): quemaría lo que se enchufe. Debe recibir una fase y el neutro.`, itc: 'ITC-BT-10 · ITC-BT-19', hl: { c: [c.id] },
+        fix: `Entre dos fases hay ${V_LL} V, no 230. Cambia uno de los dos cables activos por el NEUTRO (azul, desde la salida N del PIA).` }); continue; }
       if (okParPot(pa, pb)) { if (energia) msgs.push({ lvl: 'info', txt: 'Hay una toma lista: sube las protecciones para darle tensión.' }); }
       else {
-        if (!(pa === potR.nu || pb === potR.nu)) msgs.push({ lvl: 'err', txt: 'A una toma no le llega el neutro (cable azul desde la salida N del PIA).', itc: 'ITC-BT-19' });
-        if (!(potR.phs.includes(pa) || potR.phs.includes(pb))) msgs.push({ lvl: 'err', txt: 'A una toma no le llega la fase (cable marrón desde la salida L del PIA).', itc: 'ITC-BT-19' });
+        if (!(pa === potR.nu || pb === potR.nu)) msgs.push({ lvl: 'err', txt: 'A una toma no le llega el neutro (cable azul desde la salida N del PIA).', itc: 'ITC-BT-19', hl: { c: [c.id] },
+          fix: 'Tiende un cable azul desde la salida N (abajo) de su PIA hasta el borne N de la toma: es el camino de vuelta de la corriente.' });
+        if (!(potR.phs.includes(pa) || potR.phs.includes(pb))) msgs.push({ lvl: 'err', txt: 'A una toma no le llega la fase (cable marrón desde la salida L del PIA).', itc: 'ITC-BT-19', hl: { c: [c.id] },
+          fix: 'Tiende un cable marrón desde la salida L (abajo) de su PIA hasta el borne L de la toma. Las tomas no llevan interruptor: la fase va directa.' });
       }
     }
   }
@@ -211,16 +232,21 @@ function simulate() {
     if (!res.lit[c.id] && energia) {
       const rs = ['L1', 'L2', 'L3'].map(t => uf.f(K(c.id, t)));
       const nFases = new Set(rs.filter(r => phs.includes(r))).size;
-      if (!sup.tri) msgs.push({ lvl: 'err', txt: 'Un motor trifásico no puede funcionar con la red monofásica: necesita la Red 3~ de 400 V.', itc: 'ITC-BT-47' });
-      else if (nFases > 0 && nFases < 3) msgs.push({ lvl: 'err', txt: `Al motor trifásico le ${nFases === 2 ? 'falta una fase' : 'faltan dos fases'}: debe recibir L1, L2 y L3 distintas.`, itc: 'ITC-BT-47' });
-      if (rs.some(r => r === nu)) msgs.push({ lvl: 'err', txt: 'El motor trifásico tiene el neutro en un borne de fase: sus tres bornes son solo para fases.', itc: 'ITC-BT-47' });
+      if (!sup.tri) msgs.push({ lvl: 'err', txt: 'Un motor trifásico no puede funcionar con la red monofásica: necesita la Red 3~ de 400 V.', itc: 'ITC-BT-47', hl: { c: [c.id] },
+        fix: 'Sustituye la Red 230 V por la Red 3~ (pestaña Enlace) y lleva L1, L2 y L3 a los tres bornes del motor.' });
+      else if (nFases > 0 && nFases < 3) msgs.push({ lvl: 'err', txt: `Al motor trifásico le ${nFases === 2 ? 'falta una fase' : 'faltan dos fases'}: debe recibir L1, L2 y L3 distintas.`, itc: 'ITC-BT-47', hl: { c: [c.id] },
+        fix: 'El campo magnético giratorio que arranca el motor solo aparece con las TRES fases desfasadas 120°. En la realidad, con una fase perdida el motor zumba, no gira y se quema. Comprueba que cada borne recibe una fase DISTINTA.' });
+      if (rs.some(r => r === nu)) msgs.push({ lvl: 'err', txt: 'El motor trifásico tiene el neutro en un borne de fase: sus tres bornes son solo para fases.', itc: 'ITC-BT-47', hl: { c: [c.id] },
+        fix: 'Este motor se conecta solo entre fases (400 V): el neutro no interviene. Cambia ese cable por la fase que falte.' });
     }
-    if (!earthSet.has(uf.f(K(c.id, 'PE')))) msgs.push({ lvl: 'err', txt: 'La carcasa del motor trifásico no está puesta a tierra: une su borne PE al borne principal.', itc: 'ITC-BT-18' });
+    if (!earthSet.has(uf.f(K(c.id, 'PE')))) msgs.push({ lvl: 'err', txt: 'La carcasa del motor trifásico no está puesta a tierra: une su borne PE al borne principal.', itc: 'ITC-BT-18', hl: { c: [c.id] },
+      fix: 'La carcasa metálica quedaría en tensión si un devanado deriva. Une el borne PE del motor al borne principal de tierra en verde-amarillo.' });
   }
 
   /* --- tierra general --- */
   if ((S.comps.some(c => c.type === 'toma') || S.comps.some(c => c.type === 'borne')) && picas.length === 0) {
-    msgs.push({ lvl: 'err', txt: 'La instalación no tiene puesta a tierra: añade la pica y únela al borne principal.', itc: 'ITC-BT-18' });
+    msgs.push({ lvl: 'err', txt: 'La instalación no tiene puesta a tierra: añade la pica y únela al borne principal.', itc: 'ITC-BT-18',
+      fix: 'La pica clavada en el terreno da salida a las corrientes de fuga: sin ella, el diferencial no tiene por dónde detectar la fuga hasta que pase por una persona. Añade la pica (pestaña Cuadro y tierra), únela al borne principal y reparte desde ahí el verde-amarillo.' });
   }
 
   /* --- interruptor cortando el neutro --- */
@@ -232,7 +258,8 @@ function simulate() {
       const t = buildUF({ open: { [sw.id]: true } });
       const fl2 = energFlags(t, sup, true);
       const apaga = S.comps.some(l => l.type === 'luz' && res.lit[l.id] && !fl2.lit[l.id]);
-      if (apaga) msgs.push({ lvl: 'err', txt: 'Un interruptor está cortando el neutro: los aparatos de maniobra deben cortar siempre la fase. Lleva la fase al interruptor y el neutro directo a la lámpara.', itc: 'ITC-BT-19' });
+      if (apaga) msgs.push({ lvl: 'err', txt: 'Un interruptor está cortando el neutro: los aparatos de maniobra deben cortar siempre la fase. Lleva la fase al interruptor y el neutro directo a la lámpara.', itc: 'ITC-BT-19', hl: { c: [sw.id] },
+        fix: 'La luz se apaga igual, pero el portalámparas queda EN TENSIÓN con el interruptor abierto: calambrazo al cambiar la bombilla. Invierte el montaje: fase del PIA → interruptor → lámpara, y el neutro azul directo del PIA a la lámpara.' });
     }
   }
 
@@ -243,11 +270,12 @@ function simulate() {
       const n = pot.f(K(w.a.c, w.a.t));
       const esF = potR.phs.includes(n), esN = n === potR.nu, esT = potEarth.has(n);
       let k = null, m = null;
+      const fixCol = 'El color no cambia cómo funciona HOY, pero el siguiente electricista confiará en él: un activo disfrazado de tierra puede matar. Toca el cable señalado y corrige su color en la ficha.';
       if ((esF || esN) && w.color === 'tierra') { k = 'vk'; m = { lvl: 'err', txt: 'Hay un conductor activo en verde-amarillo: ese color se reserva EXCLUSIVAMENTE para el conductor de protección (tierra).', itc: 'ITC-BT-19' }; }
       else if (esF && w.color === 'azul') { k = 'fa'; m = { lvl: 'warn', txt: 'Hay una fase cableada en azul: el azul se reserva para el neutro. Usa marrón, negro o gris.', itc: 'ITC-BT-19' }; }
       else if (esN && w.color !== 'azul') { k = 'na'; m = { lvl: 'warn', txt: 'El neutro debe ir siempre en azul claro.', itc: 'ITC-BT-19' }; }
       else if (esT && w.color !== 'tierra') { k = 'tv'; m = { lvl: 'warn', txt: 'Los conductores de protección (tierra) deben ser verde-amarillo.', itc: 'ITC-BT-19' }; }
-      if (m && !ya.has(k)) { ya.add(k); msgs.push(m); }
+      if (m && !ya.has(k)) { ya.add(k); m.hl = { w: [w.id] }; m.fix = fixCol; msgs.push(m); }
     }
     res.coloresMal = ya.size;
   }
@@ -272,12 +300,16 @@ function simulate() {
       const maxCal = MAX_PIA_SECCION[String(smin)];
       if (maxCal && cal > maxCal) {
         est = 'err';
-        msgs.push({ lvl: 'err', txt: `Un PIA de ${cal} A no protege un cable de ${fmtSec(smin)} mm²: ese circuito debe protegerse con ${maxCal} A.`, itc: 'ITC-BT-25 e ITC-BT-17' });
+        msgs.push({ lvl: 'err', txt: `Un PIA de ${cal} A no protege un cable de ${fmtSec(smin)} mm²: ese circuito debe protegerse con ${maxCal} A.`, itc: 'ITC-BT-25 e ITC-BT-17',
+          hl: { c: [ce.pia.id], w: [...ce.wF, ...ce.wN].filter(w2 => w2.sec === smin).map(w2 => w2.id) },
+          fix: `El PIA existe para que el CABLE nunca pase de su corriente admisible: con ${cal} A de calibre, un cable de ${fmtSec(smin)} mm² se recalentaría sin que nada salte (así empiezan los incendios). O bajas el PIA a ${maxCal} A (su ficha) o subes la sección de los cables señalados.` });
       }
     }
     if (inst && pct > CAIDA_MAX) {
       est = 'err';
-      msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(r2(pct))} % en el circuito del PIA de ${cal} A (máximo 3 %): aumenta la sección o acorta la línea.`, itc: 'ITC-BT-19' });
+      msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(r2(pct))} % en el circuito del PIA de ${cal} A (máximo 3 %): aumenta la sección o acorta la línea.`, itc: 'ITC-BT-19',
+        hl: { w: ce.wF.map(w2 => w2.id) },
+        fix: `El cable también tiene resistencia: ΔU = 2·ρ·L·I/S. Cuanto más largo y fino, más tensión se pierde por el camino (las luces brillan menos y los cables se calientan). Toca los cables señalados y sube su sección o reduce su longitud.` });
     }
     if (inst && ce.pia.props.circuito) {
       const tb = TABLA_C[ce.pia.props.circuito];
@@ -288,7 +320,9 @@ function simulate() {
     }
     if (ce.dLoads.length && ce.fed && !ce.dif) {
       est = 'err';
-      msgs.push({ lvl: 'err', txt: `El circuito del PIA de ${cal} A no pasa por ningún diferencial: es obligatorio un ID de 30 mA aguas arriba.`, itc: 'ITC-BT-24 · ITC-BT-25' });
+      msgs.push({ lvl: 'err', txt: `El circuito del PIA de ${cal} A no pasa por ningún diferencial: es obligatorio un ID de 30 mA aguas arriba.`, itc: 'ITC-BT-24 · ITC-BT-25',
+        hl: { c: [ce.pia.id] },
+        fix: 'El PIA protege los cables; el DIFERENCIAL te protege a ti. Intercala un ID de 30 mA entre el IGA y este PIA: la fase y el neutro del circuito deben pasar por él para que pueda comparar la ida y la vuelta.' });
     }
     res.circuits.push({
       id: ce.pia.id, calibre: cal, circuito: ce.pia.props.circuito || '', fed: ce.fed,
@@ -302,7 +336,8 @@ function simulate() {
   /* --- máx. 5 circuitos por diferencial --- */
   for (const d of S.comps.filter(c => c.type === 'dif')) {
     const n = res.circuits.filter(ci => ci.dif === d.id).length;
-    if (n > 5) msgs.push({ lvl: 'err', txt: `Hay ${n} circuitos colgando de un solo diferencial: el máximo es 5. Añade otro ID de 30 mA y reparte.`, itc: 'ITC-BT-25' });
+    if (n > 5) msgs.push({ lvl: 'err', txt: `Hay ${n} circuitos colgando de un solo diferencial: el máximo es 5. Añade otro ID de 30 mA y reparte.`, itc: 'ITC-BT-25', hl: { c: [d.id] },
+      fix: 'Si un solo diferencial protege demasiados circuitos, cualquier fuga deja la casa entera a oscuras y las fugas pequeñas de varios aparatos se suman hasta hacerlo saltar «sin motivo». Añade un segundo ID y reparte los PIAs entre los dos.' });
   }
 
   /* --- enlace: LGA, derivaciones individuales y centralización ---
@@ -378,11 +413,14 @@ function simulate() {
       res.dis.push({ smin, pct, lf, lim });
       /* la caída de esta DI la sufren todos sus receptores aguas abajo */
       for (const id of total.cargas) res.vEnlace[id] = (res.vEnlace[id] || 0) + vDI;
+      const diIds = [...tr.wF, ...tr.wN].map(w2 => w2.id);
       if (inst && smin < DI_SEC_MIN) {
-        msgs.push({ lvl: 'err', txt: `Una derivación individual tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15' });
+        msgs.push({ lvl: 'err', txt: `Una derivación individual tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15', hl: { w: diIds },
+          fix: `La DI lleva TODA la potencia de la vivienda, por eso la norma le exige al menos ${DI_SEC_MIN} mm². Toca los cables señalados y sube su sección en la ficha.` });
       }
       if (inst && pct > lim) {
-        msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en una derivación individual (máximo ${fmtNum(lim)} % ${conLGA ? 'con contadores centralizados' : 'para un solo usuario sin LGA'}): aumenta la sección o acorta el tramo.`, itc: 'ITC-BT-15' });
+        msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en una derivación individual (máximo ${fmtNum(lim)} % ${conLGA ? 'con contadores centralizados' : 'para un solo usuario sin LGA'}): aumenta la sección o acorta el tramo.`, itc: 'ITC-BT-15', hl: { w: diIds },
+          fix: 'Si el enlace ya pierde demasiada tensión, a la vivienda le llega menos de lo debido incluso antes de empezar sus circuitos. Sube la sección de los cables señalados o acorta su longitud (ficha del cable).' });
       }
     }
     res.di = res.dis[0] || null;
@@ -405,8 +443,11 @@ function simulate() {
           const d = defOf(c);
           if (c.type === 'luz' || c.type === 'toma' || d.load || d.load3) res.vEnlace[c.id] = (res.vEnlace[c.id] || 0) + vFN;
         }
-        if (inst && smin < LGA_SEC_MIN) msgs.push({ lvl: 'err', txt: `La línea general de alimentación tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${LGA_SEC_MIN} mm² en cobre.`, itc: 'ITC-BT-14' });
-        if (inst && pct > lim) msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la LGA (máximo ${fmtNum(lim)} % hacia ${igms.length > 1 ? 'centralizaciones parciales' : 'una centralización única'}): aumenta la sección.`, itc: 'ITC-BT-14' });
+        const lgaIds = [...tr.wF, ...tr.wN].map(w2 => w2.id);
+        if (inst && smin < LGA_SEC_MIN) msgs.push({ lvl: 'err', txt: `La línea general de alimentación tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${LGA_SEC_MIN} mm² en cobre.`, itc: 'ITC-BT-14', hl: { w: lgaIds },
+          fix: `La LGA alimenta el edificio ENTERO: todas las viviendas suman su corriente en ella. Sube la sección de los cables señalados a ${LGA_SEC_MIN} mm² o más.` });
+        if (inst && pct > lim) msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la LGA (máximo ${fmtNum(lim)} % hacia ${igms.length > 1 ? 'centralizaciones parciales' : 'una centralización única'}): aumenta la sección.`, itc: 'ITC-BT-14', hl: { w: lgaIds },
+          fix: 'El límite es tan estricto (0,5–1 %) porque lo que se pierda aquí lo sufren TODAS las viviendas a la vez. Sube la sección de los cables señalados.' });
       }
     }
 
@@ -443,7 +484,8 @@ function simulate() {
     const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
     if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un cuadro de vivienda sin conectar: su derivación individual lleva fase, neutro y tierra.' }); continue; }
     if (!earthSet.has(uf.f(K(c.id, 'PE')))) {
-      msgs.push({ lvl: 'err', txt: 'A una vivienda no le llega el conductor de protección: la derivación individual lleva fase, neutro Y tierra (verde-amarillo).', itc: 'ITC-BT-15 · ITC-BT-26' });
+      msgs.push({ lvl: 'err', txt: 'A una vivienda no le llega el conductor de protección: la derivación individual lleva fase, neutro Y tierra (verde-amarillo).', itc: 'ITC-BT-15 · ITC-BT-26', hl: { c: [c.id] },
+        fix: 'Une el borne PE de la vivienda señalada con el borne principal de tierra (y este con la pica) en verde-amarillo: sin ese conductor, ninguna toma de esa vivienda tendría tierra.' });
     }
   }
 
@@ -455,8 +497,10 @@ function simulate() {
       const t2R = supRoots(t2, sup);
       return !t2R.phs.includes(t2.f(K(ci.id, 'Li')));
     }));
-    if (igas.length === 0) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Falta el IGA: todo cuadro de vivienda lleva un Interruptor General Automático en cabecera.', itc: 'ITC-BT-17' }); }
-    else if (sinIGA) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Hay circuitos con tensión que no pasan por el IGA: debe estar en cabecera, cortando toda la instalación.', itc: 'ITC-BT-17' }); }
+    if (igas.length === 0) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Falta el IGA: todo cuadro de vivienda lleva un Interruptor General Automático en cabecera.', itc: 'ITC-BT-17',
+      fix: 'El IGA permite dejar sin tensión TODA la vivienda de un golpe (para trabajar con seguridad) y protege el conjunto. Añádelo el primero del cuadro: la alimentación entra por él y de su salida cuelga todo lo demás.' }); }
+    else if (sinIGA) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Hay circuitos con tensión que no pasan por el IGA: debe estar en cabecera, cortando toda la instalación.', itc: 'ITC-BT-17', hl: { c: igas.map(g => g.id) },
+      fix: 'Si algún circuito se alimenta «puenteando» el IGA, bajarlo no deja la casa sin tensión y alguien puede llevarse un susto. Recablea para que TODO pase primero por el IGA.' }); }
   }
 
   /* --- diferencial con tensión (para el botón T) --- */
@@ -543,8 +587,39 @@ function renderResults() {
     h += `</table>`;
   }
   if (!SIM.msgs.length) h += `<div class="msg info"><span class="mdot"></span><div>Monta componentes y cablea para ver aquí el diagnóstico.</div></div>`;
-  for (const m of SIM.msgs) {
-    h += `<div class="msg ${m.lvl}"><span class="mdot"></span><div>${esc(m.txt)}${m.itc ? `<span class="itc">${esc(m.itc)}</span>` : ''}</div></div>`;
-  }
+  h += msgsHTML(SIM.msgs);
   $('#resBody').innerHTML = h;
 }
+
+/* mensajes del panel: los que llevan solución o señalización son tocables */
+function msgsHTML(msgs) {
+  let h = '';
+  msgs.forEach((m, i) => {
+    const acc = !!(m.fix || m.hl);
+    const abierto = acc && S.msgOpen === i;
+    h += `<div class="msg ${m.lvl}${acc ? ' acc' : ''}"${acc ? ` data-mi="${i}"` : ''}><span class="mdot"></span><div>
+      ${esc(m.txt)}${m.itc ? `<span class="itc">${esc(m.itc)}</span>` : ''}
+      ${abierto && m.fix ? `<div class="fix">💡 ${esc(m.fix)}</div>` : ''}
+      ${acc ? `<div class="verSol">${abierto ? (m.hl ? 'Señalado en el plano (cierra este panel para verlo)' : '') : 'Toca aquí: solución y dónde está'}</div>` : ''}
+    </div></div>`;
+  });
+  return h;
+}
+
+/* tocar un mensaje: desplegar la solución y señalar el problema en el plano */
+$('#resBody').addEventListener('click', e => {
+  const el = e.target.closest('[data-mi]');
+  if (!el || !SIM) return;
+  const i = Number(el.dataset.mi);
+  const m = SIM.msgs[i];
+  if (!m) return;
+  if (S.msgOpen === i) {
+    S.msgOpen = null; S.hl = null; S.hlC = null;
+  } else {
+    S.msgOpen = i;
+    S.hl = m.hl && m.hl.w ? new Set(m.hl.w) : null;
+    S.hlC = m.hl && m.hl.c ? new Set(m.hl.c) : null;
+    if (m.hl && m.hl.c && m.hl.c.length) panTo(m.hl.c[0]);
+  }
+  render();
+});

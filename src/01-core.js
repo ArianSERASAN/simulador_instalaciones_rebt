@@ -86,7 +86,11 @@ let S = {
   cam: { tx: 0, ty: 0, s: 1 },
   sel: null,                   // id comp seleccionado
   selWire: null,
-  reto: null
+  reto: null,
+  medir: null,                 // multímetro: {a:{c,t}, b:{c,t}} | null
+  hl: null,                    // Set de ids de cable resaltados (camino/solución)
+  hlC: null,                   // Set de ids de componente señalados
+  msgOpen: null                // índice del mensaje con la solución desplegada
 };
 let SIM = null;                // último resultado de simulación
 let wireDraft = null;          // {from:{c,t}, x,y} cable a medio tender

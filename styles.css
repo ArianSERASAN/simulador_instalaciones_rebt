@@ -46,6 +46,13 @@ body.lab #appTitle{color:#37c26e}
 #retoBar button{
   min-height:40px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:600;
 }
+#medirBar{
+  display:none;align-items:center;gap:8px;padding:8px 12px;background:#1f3a2c;
+  border-bottom:1px solid #2f5c43;font-size:13px;z-index:19;
+}
+#medirBar.on{display:flex}
+#medirTxt{flex:1;font-weight:600;color:#8de2ae;font-family:ui-monospace,monospace}
+#medirBar button{min-height:40px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:600;background:#2c4a3a;color:#cfe9d8}
 #btnRetoCheck{background:#2f9e57;color:#fff}
 #btnRetoExit{background:#3a4256;color:#cfd6e2}
 
@@ -233,5 +240,9 @@ body.multifilar .tlbl{fill:#7d8794}
 .lever{transition:y .12s ease}
 @keyframes tripFlash{0%,100%{opacity:0}45%{opacity:1}}
 .tripmark{animation:tripFlash 1.1s ease infinite}
+.hlsel{fill:none;stroke:#ffd85e;stroke-width:3;stroke-dasharray:8 5;pointer-events:none;animation:tripFlash 1.4s ease infinite alternate}
+.msg.acc{cursor:pointer}
+.msg .fix{margin-top:7px;padding:8px 10px;border-radius:9px;background:#3a4256;color:#ffe9b3;font-size:12.5px;line-height:1.45}
+.msg .verSol{margin-top:4px;font-size:11px;color:#7f90a8}
 .ghostWire{stroke:#3a72d4;stroke-width:3;stroke-dasharray:7 6;fill:none;pointer-events:none}
 text{font-family:-apple-system,system-ui,sans-serif}

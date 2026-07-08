@@ -6,6 +6,22 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 9: multímetro, camino de la corriente y errores con solución
+- **Multímetro virtual** (menú): puntas de prueba roja y negra; toca dos
+  bornes cualesquiera y lee **tensión y continuidad** (230 V fase-neutro,
+  400 V entre fases, 0 V neutro-tierra…). En el laboratorio lee la tensión
+  **real** calculada por el solver.
+- **Camino de la corriente**: botón en la ficha de cualquier receptor con
+  tensión que resalta en amarillo su recorrido completo
+  fase → receptor → neutro sobre el plano.
+- **Errores que enseñan**: los mensajes del panel ahora son **tocables** —
+  al tocar uno se despliega la **solución explicada** (el porqué físico y
+  los pasos concretos) y el componente o cable culpable queda **señalado en
+  el plano** con la cámara centrada en él. Cubre cortos, fugas, receptores
+  quemados, sobrecargas, tierra, colores, calibres, caídas, DI/LGA, motor
+  trifásico, viviendas y el laboratorio.
+- Caché SW `rebt-v15`.
+
 ### Añadido — Fase 8: edición cómoda e integración continua
 - **Deshacer** (botón ↩ en la barra superior) y **Rehacer** (menú): historial
   de 50 pasos que cubre añadir/mover/borrar componentes y cables, cambios de

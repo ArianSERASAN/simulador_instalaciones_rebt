@@ -268,12 +268,14 @@ function simulateLab() {
         res.lit[r.c.id] = P > 0.03 * r.c.props.wn;
         if (P > 1.6 * r.c.props.wn) {
           r.c.state.quemado = true; cambio = true;
-          msgs.push({ lvl: 'err', txt: `Una bombilla de ${r.c.props.wn} W está recibiendo ${fmtNum(r1(P))} W (demasiada tensión para su valor nominal): se ha fundido. Sustitúyela desde su ficha.` });
+          msgs.push({ lvl: 'err', txt: `Una bombilla de ${r.c.props.wn} W está recibiendo ${fmtNum(r1(P))} W (demasiada tensión para su valor nominal): se ha fundido. Sustitúyela desde su ficha.`, hl: { c: [r.c.id] },
+            fix: 'La potencia crece con el CUADRADO de la tensión (P = V²/R): con el doble de voltios, cuatro veces más potencia. Baja la tensión de la pila o usa una bombilla de nominal mayor, y después pulsa «Sustituir».' });
         }
       }
       if (r.kind === 'fus' && Math.abs(I) > r.c.props.in) {
         r.c.state.fundido = true; cambio = true;
-        msgs.push({ lvl: 'err', txt: `Por el fusible de ${String(r.c.props.in).replace('.', ',')} A pasaban ${fmtNum(r1(Math.abs(I)))} A: se ha fundido y ha abierto el circuito. Corrige la causa y sustitúyelo (tócalo).` });
+        msgs.push({ lvl: 'err', txt: `Por el fusible de ${String(r.c.props.in).replace('.', ',')} A pasaban ${fmtNum(r1(Math.abs(I)))} A: se ha fundido y ha abierto el circuito. Corrige la causa y sustitúyelo (tócalo).`, hl: { c: [r.c.id] },
+          fix: 'El fusible ha hecho su trabajo: sacrificarse antes de que se queme otra cosa. Busca qué provocó tanta corriente (normalmente un cortocircuito: un cable que puentea el receptor), elimínalo y toca el fusible para sustituirlo.' });
       }
     }
     for (const p of pilas) {
@@ -286,6 +288,15 @@ function simulateLab() {
     if (cambio) {   // algo se ha fundido: limpiar medidas y resolver de nuevo
       res.lit = {}; res.volt = {}; res.amp = {}; res.bulb = {}; res.iPila = {};
       continue;
+    }
+    /* tensión de cada borne (para el multímetro de puntas) */
+    res.termV = {};
+    for (const c of S.comps) {
+      for (const t of defOf(c).terms) {
+        const k = K(c.id, t.id);
+        const r = uf.f(k);
+        if (nodo.has(r)) res.termV[k] = vn(nodo.get(r));
+      }
     }
     break;
   }
@@ -323,7 +334,7 @@ function renderLabResults() {
       filas.map(f => `<tr><td>${esc(f[0])}</td><td>${esc(f[1])}</td></tr>`).join('') + `</table>`;
   }
   if (!SIM.msgs.length) h += `<div class="msg info"><span class="mdot"></span><div>Monta un circuito: pila, cables y receptores. La corriente necesita un camino cerrado.</div></div>`;
-  for (const m of SIM.msgs) h += `<div class="msg ${m.lvl}"><span class="mdot"></span><div>${esc(m.txt)}</div></div>`;
+  h += msgsHTML(SIM.msgs);
   $('#resBody').innerHTML = h;
 }
 

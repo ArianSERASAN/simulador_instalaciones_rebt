@@ -802,6 +802,92 @@ const TESTS = [
     return pia ? null : 'la etiqueta debería sobrevivir a serialize/deserialize';
   })],
 
+  /* ---------- Fase 9: multímetro y camino de la corriente ---------- */
+
+  ['multímetro REBT: 230 fase-neutro, 400 entre fases, 0 neutro-tierra', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    update();
+    let r = medirEntre(K(m.pia1.id, 'Lo'), K(m.pia1.id, 'No'));
+    if (r.v !== 230) return 'fase-neutro deberían ser 230 V, hay ' + r.v;
+    r = medirEntre(K(m.pia1.id, 'No'), K(m.pica.id, 'PE'));
+    if (r.v !== 0) return 'neutro-tierra deberían ser 0 V, hay ' + r.v;
+    r = medirEntre(K(m.pia1.id, 'Lo'), K(m.pica.id, 'PE'));
+    if (r.v !== 230) return 'fase-tierra deberían ser 230 V (TT), hay ' + r.v;
+    r = medirEntre(K(m.iga.id, 'Li'), K(m.iga.id, 'Lo'));
+    if (!r.cont || r.v !== 0) return 'a través del IGA cerrado: continuidad y 0 V';
+    m.iga.state.on = false; update();
+    r = medirEntre(K(m.iga.id, 'Li'), K(m.iga.id, 'Lo'));
+    if (r.cont) return 'con el IGA abierto no hay continuidad entre sus bornes';
+    // trifásica: 400 V entre fases
+    __t.reset();
+    const r3 = mkComp('red3', 280, 20);
+    update();
+    r = medirEntre(K(r3.id, 'L1'), K(r3.id, 'L2'));
+    return r.v === 400 ? null : 'entre L1 y L2 deberían ser 400 V, hay ' + r.v;
+  })],
+
+  ['multímetro en el laboratorio: lee la tensión real', async page => page.evaluate(() => {
+    __t.reset(); histClear(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 12 });
+    const r1c = mkComp('resistencia', 260, 100, { r: 100 });
+    const r2c = mkComp('resistencia', 400, 100, { r: 100 });
+    mkWire(pila, 'p', r1c, 'a', 'negro'); mkWire(r1c, 'b', r2c, 'a', 'negro');
+    mkWire(r2c, 'b', pila, 'm', 'negro');
+    update();
+    const r = medirEntre(K(r2c.id, 'a'), K(r2c.id, 'b'));
+    return (r.v > 5.7 && r.v < 6.2) ? null : 'sobre una resistencia del divisor deberían leerse ~6 V, hay ' + r.v;
+  })],
+
+  ['camino de la corriente: incluye su circuito y excluye los demás', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    update();
+    const cs = caminoReceptor(m.luz);
+    if (!cs || !cs.size) return 'debería trazarse el camino de la luz encendida';
+    const deLuz = S.wires.filter(w => w.a.c === m.luz.id || w.b.c === m.luz.id).map(w => w.id);
+    if (!deLuz.every(id => cs.has(id))) return 'el camino debe incluir los cables de la lámpara';
+    const deToma = S.wires.filter(w => w.a.c === m.toma.id || w.b.c === m.toma.id).map(w => w.id);
+    if (deToma.some(id => cs.has(id))) return 'el camino de la luz no debe pasar por la toma';
+    const acometida = S.wires.filter(w => w.a.c === m.red.id || w.b.c === m.red.id).map(w => w.id);
+    if (!acometida.every(id => cs.has(id))) return 'el camino debe llegar hasta la red';
+    m.int1.state.on = false; update();
+    return caminoReceptor(m.luz) === null ? null : 'con el interruptor abierto no hay camino de fase';
+  })],
+
+  ['los errores llevan solución y señalan al culpable', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const m = montarVivienda();
+    // quitar la tierra de la toma: error con fix y hl al componente
+    S.wires = S.wires.filter(w => !(w.a.c === m.toma.id && w.a.t === 'PE') && !(w.b.c === m.toma.id && w.b.t === 'PE'));
+    update();
+    const msg = SIM.msgs.find(x => x.txt.includes('no tiene tierra'));
+    if (!msg) return 'debería avisar de la toma sin tierra';
+    if (!msg.fix || msg.fix.length < 30) return 'el error debería llevar una solución explicada';
+    if (!msg.hl || !msg.hl.c || !msg.hl.c.includes(m.toma.id)) return 'el error debería señalar la toma';
+    // sobrecarga: señala PIA y cargas, con fix
+    __t.reset();
+    const m2 = montarVivienda();
+    S.mode = 'instalador';
+    m2.toma.props.carga = 5500;
+    update();
+    const sob = SIM.msgs.find(x => x.txt.includes('Sobrecarga'));
+    if (!sob || !sob.fix || !sob.hl || !sob.hl.c.includes(m2.pia2.id)) return 'la sobrecarga debería llevar fix y señalar su PIA';
+    return null;
+  })],
+
+  ['el interruptor que corta el neutro señala al interruptor', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const a = AVERIAS.find(x => x.id === 'a1');
+    a.build(); S.averia = null;
+    update();
+    const msg = SIM.msgs.find(x => x.txt.includes('cortando el neutro'));
+    if (!msg) return 'debería detectar el neutro cortado';
+    if (!msg.hl || !msg.hl.c || !msg.hl.c.length) return 'debería señalar el interruptor culpable';
+    const c = byId(msg.hl.c[0]);
+    return c && c.type === 'int' ? null : 'el señalado debería ser el interruptor';
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();

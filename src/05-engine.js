@@ -213,5 +213,111 @@ function demandaPorFase(uf, fl, sup) {
   return I;
 }
 
+/* ==================================================================
+   GRAFO EXPLÍCITO — para el multímetro y el camino de la corriente
+   ================================================================== */
+/* aristas activas del montaje: contactos cerrados + cables (con su id) */
+function edgesActivos() {
+  const ed = [];
+  for (const c of S.comps) {
+    switch (c.type) {
+      case 'iga': case 'dif': case 'pia':
+        if (c.state.on && !c.state.trip) ed.push({ a: K(c.id, 'Li'), b: K(c.id, 'Lo') }, { a: K(c.id, 'Ni'), b: K(c.id, 'No') });
+        break;
+      case 'int': if (c.state.on) ed.push({ a: K(c.id, 'p'), b: K(c.id, 's') }); break;
+      case 'conm': ed.push({ a: K(c.id, 'c'), b: K(c.id, c.state.pos ? 'l2' : 'l1') }); break;
+      case 'borne': {
+        const ts = defOf(c).terms;
+        for (let i = 1; i < ts.length; i++) ed.push({ a: K(c.id, ts[0].id), b: K(c.id, ts[i].id) });
+        break;
+      }
+      default: {
+        const d = defOf(c);
+        if (d.links) for (const [a, b] of d.links(c, {})) ed.push({ a: K(c.id, a), b: K(c.id, b) });
+      }
+    }
+  }
+  for (const w of S.wires) ed.push({ a: K(w.a.c, w.a.t), b: K(w.b.c, w.b.t), w: w.id });
+  return ed;
+}
+
+/* camino más corto de `from` a cualquiera de `targets` → ids de cables usados */
+function bfsCables(ed, from, targets) {
+  const adj = new Map();
+  const add = (k, e, o) => { if (!adj.has(k)) adj.set(k, []); adj.get(k).push({ to: o, e }); };
+  for (const e of ed) { add(e.a, e, e.b); add(e.b, e, e.a); }
+  const prev = new Map([[from, null]]);
+  const cola = [from];
+  let fin = null;
+  while (cola.length) {
+    const k = cola.shift();
+    if (targets.has(k)) { fin = k; break; }
+    for (const { to, e } of (adj.get(k) || [])) {
+      if (prev.has(to)) continue;
+      prev.set(to, { k, e });
+      cola.push(to);
+    }
+  }
+  if (fin === null) return null;
+  const cables = new Set();
+  for (let p = prev.get(fin); p; p = prev.get(p.k)) if (p.e.w) cables.add(p.e.w);
+  return cables;
+}
+
+/* recorrido completo fase → receptor → neutro de un receptor encendido */
+function caminoReceptor(c) {
+  const sup = getSupply();
+  if (!sup) return null;
+  const ed = edgesActivos();
+  const phT = new Set(sup.phases.map(t => K(sup.comp.id, t)));
+  const nuT = new Set([K(sup.comp.id, 'N')]);
+  const d = defOf(c);
+  const cables = new Set();
+  const tramos = d.load3
+    ? [['L1', phT], ['L2', phT], ['L3', phT]]
+    : [['L', phT], ['N', nuT]];
+  for (const [term, targets] of tramos) {
+    const parte = bfsCables(ed, K(c.id, term), targets);
+    if (!parte) return null;
+    for (const w of parte) cables.add(w);
+  }
+  return cables;
+}
+
+/* medición entre dos bornes (multímetro) → {cont, v} con v en voltios o null */
+function medirEntre(ka, kb) {
+  if (S.lab) {
+    const s = (SIM && SIM.lab) ? SIM : simulateLab();
+    const va = s.termV ? s.termV[ka] : null, vb = s.termV ? s.termV[kb] : null;
+    const uf = new UF();
+    for (const w of S.wires) uf.u(K(w.a.c, w.a.t), K(w.b.c, w.b.t));
+    for (const c of S.comps) {
+      if (c.type === 'int' && c.state.on) uf.u(K(c.id, 'p'), K(c.id, 's'));
+      if (c.type === 'puls' && c.state.pressed) uf.u(K(c.id, 'p'), K(c.id, 's'));
+    }
+    const cont = uf.f(ka) === uf.f(kb);
+    return { cont, v: (va != null && vb != null) ? Math.abs(va - vb) : (cont ? 0 : null) };
+  }
+  const uf = buildUF();
+  const ra = uf.f(ka), rb = uf.f(kb);
+  const cont = ra === rb;
+  const sup = getSupply();
+  const energia = !!sup && SIM && !SIM.fault && !SIM.sinRed;
+  if (!sup || !energia) return { cont, v: cont ? 0 : null };
+  const { phs, nu } = supRoots(uf, sup);
+  const es = new Set(S.comps.filter(c => c.type === 'pica').map(p => uf.f(K(p.id, 'PE'))));
+  const cls = r => { const i = phs.indexOf(r); return i >= 0 ? 'F' + i : (r === nu ? 'N' : (es.has(r) ? 'T' : null)); };
+  const a = cls(ra), b = cls(rb);
+  if (a == null || b == null) return { cont, v: cont ? 0 : null };
+  let v = 0;
+  if (a !== b) {
+    const fA = a[0] === 'F', fB = b[0] === 'F';
+    if (fA && fB) v = V_LL;              // dos fases distintas
+    else if (fA || fB) v = V_RED;        // fase-neutro o fase-tierra (esquema TT)
+    else v = 0;                          // neutro-tierra
+  }
+  return { cont, v };
+}
+
 const fmtSec = v => String(v).replace('.', ',');
 const fmtNum = v => String(v).replace('.', ',');

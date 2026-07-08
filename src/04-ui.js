@@ -11,6 +11,16 @@ function screenToWorld(cx, cy) {
   const r = svg.getBoundingClientRect();
   return { x: (cx - r.left - S.cam.tx) / S.cam.s, y: (cy - r.top - S.cam.ty) / S.cam.s };
 }
+/* centrar la cámara en un componente (para señalar errores) */
+function panTo(id) {
+  const c = byId(id);
+  if (!c) return;
+  const d = defOf(c);
+  const r = svg.getBoundingClientRect();
+  S.cam.tx = r.width / 2 - (c.x + d.w / 2) * S.cam.s;
+  S.cam.ty = r.height * 0.38 - (c.y + d.h / 2) * S.cam.s;
+  updateCamera();
+}
 
 function renderBG() {
   const multi = S.view === 'multifilar';
@@ -56,6 +66,7 @@ function wireSVG(w) {
   const base = multi ? 3 : 4.5;
   const col = COLORES[w.color].c;
   let s = `<g id="wg${w.id}">`;
+  if (S.hl && S.hl.has(w.id)) s += `<path d="${d}" fill="none" stroke="#ffd85e" stroke-width="${base + 7}" stroke-linecap="round" opacity=".6" pointer-events="none"/>`;
   if (S.selWire === w.id) s += `<path class="wsel" d="${d}"/>`;
   if (w.color === 'tierra') {
     s += `<path id="w${w.id}" d="${d}" fill="none" stroke="#3f9b3f" stroke-width="${base}" stroke-linecap="round"/>
@@ -73,6 +84,7 @@ function compSVG(c) {
   const d = defOf(c);
   let s = `<g id="c${c.id}" data-comp="${c.id}" transform="translate(${r1(c.x)} ${r1(c.y)})">`;
   if (S.sel === c.id) s += `<rect class="csel" x="-8" y="-8" width="${d.w + 16}" height="${d.h + 16}" rx="8"/>`;
+  if (S.hlC && S.hlC.has(c.id)) s += `<rect class="hlsel" x="-10" y="-10" width="${d.w + 20}" height="${d.h + 20}" rx="10"/>`;
   s += drawBody(c, SIM);
   if (c.state && c.state.quemado) {
     s += `<g class="tripmark"><rect x="${d.w / 2 - 30}" y="${d.h / 2 - 10}" width="60" height="20" rx="5" fill="#e5533d" opacity=".92"/>
@@ -98,12 +110,27 @@ function compSVG(c) {
 }
 
 function renderGhost() {
-  if (!wireDraft) { ghostG.innerHTML = ''; return; }
-  const c = byId(wireDraft.from.c);
-  if (!c) { ghostG.innerHTML = ''; return; }
-  const p = termAbs(c, wireDraft.from.t);
-  ghostG.innerHTML = `<path class="ghostWire" d="M${p.x} ${p.y} L${wireDraft.x} ${wireDraft.y}"/>
-    <circle cx="${wireDraft.x}" cy="${wireDraft.y}" r="7" fill="#3a72d4" opacity=".7"/>`;
+  let h = '';
+  if (S.medir) {
+    const punta = (t, col) => {
+      const c = byId(t.c);
+      if (!c) return '';
+      const p = termAbs(c, t.t);
+      return `<circle cx="${p.x}" cy="${p.y}" r="10" fill="none" stroke="${col}" stroke-width="3.5"/>
+        <circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${col}"/>`;
+    };
+    if (S.medir.a) h += punta(S.medir.a, '#e5533d');
+    if (S.medir.b) h += punta(S.medir.b, '#2b2b2e');
+  }
+  if (wireDraft) {
+    const c = byId(wireDraft.from.c);
+    if (c) {
+      const p = termAbs(c, wireDraft.from.t);
+      h += `<path class="ghostWire" d="M${p.x} ${p.y} L${wireDraft.x} ${wireDraft.y}"/>
+        <circle cx="${wireDraft.x}" cy="${wireDraft.y}" r="7" fill="#3a72d4" opacity=".7"/>`;
+    }
+  }
+  ghostG.innerHTML = h;
 }
 
 function render() {
@@ -290,6 +317,9 @@ svg.addEventListener('pointerdown', e => {
 
   const hit = hitAt(e.clientX, e.clientY);
 
+  // multímetro activo: las puntas capturan los toques en bornes
+  if (S.medir && hit.term) { medirTap(hit.term); gest = { type: 'none' }; return; }
+
   // completar un cable en espera de segundo toque
   if (wireDraft && hit.term) {
     if (!(hit.term.c === wireDraft.from.c && hit.term.t === wireDraft.from.t)) {
@@ -446,7 +476,7 @@ function endPtr(e) {
   if (g.type === 'pan' && !g.moved) {
     // toque en vacío: cancelar cable a medias, cerrar hojas, deseleccionar
     if (wireDraft) { wireDraft = null; render(); }
-    if (S.sel || S.selWire) { S.sel = null; S.selWire = null; render(); }
+    if (S.sel || S.selWire || S.hl || S.hlC) { S.sel = null; S.selWire = null; S.hl = null; S.hlC = null; S.msgOpen = null; render(); }
     closeSheet();
   }
 }
@@ -458,6 +488,31 @@ svg.addEventListener('pointercancel', e => {
   if (wireDraft) { wireDraft = null; render(); }
 });
 document.addEventListener('gesturestart', e => e.preventDefault());
+
+/* ---------- multímetro de puntas ---------- */
+function setMedir(on) {
+  S.medir = on ? { a: null, b: null } : null;
+  $('#medirBar').classList.toggle('on', !!on);
+  if (on) $('#medirTxt').textContent = 'Multímetro · toca un borne (punta roja)';
+  wireDraft = null;
+  render();
+}
+function medirTap(t) {
+  if (!S.medir.a || S.medir.b) {
+    S.medir = { a: t, b: null };
+    $('#medirTxt').textContent = 'Punta roja puesta · toca el segundo borne';
+    render();
+    return;
+  }
+  S.medir.b = t;
+  const m = medirEntre(K(S.medir.a.c, S.medir.a.t), K(t.c, t.t));
+  let txt;
+  if (m.v == null) txt = m.cont ? '0 V · continuidad ✓' : 'sin referencia (punto aislado)';
+  else txt = fmtNum(S.lab ? r2(m.v) : r1(m.v)) + ' V' + (m.cont ? ' · continuidad ✓' : '');
+  $('#medirTxt').textContent = 'Medida: ' + txt + ' — toca otro borne para repetir';
+  render();
+}
+$('#btnMedirExit').addEventListener('click', () => setMedir(false));
 
 /* ---------- accionamientos ---------- */
 function doAct(act) {
@@ -546,6 +601,11 @@ function showFicha(c) {
   }
   if (d.fichaExtra) h += d.fichaExtra(c, inst);
 
+  const encendido = SIM && (SIM.lit[c.id] || (c.type === 'toma' && SIM.tomas[c.id] && SIM.tomas[c.id].tension));
+  if (!S.lab && encendido && (c.type === 'luz' || c.type === 'toma' || d.load || d.load3)) {
+    h += `<button class="bigbtn sec" data-cb="camino" style="margin-bottom:8px">Ver el camino de la corriente</button>`;
+  }
+
   h += `<div class="shRow"><label>Etiqueta</label><input class="nameIn" id="tagIn" maxlength="18" placeholder="p. ej. C2 cocina · 2ºA" value="${esc(c.props.tag || '')}"></div>`;
 
   h += `<div class="shBtns">`;
@@ -597,6 +657,15 @@ sheetBody.addEventListener('click', e => {
 
   if (['piaCal', 'piaCir', 'igaCal', 'pot', 'carga', 'fp', 'prop', 'propStep', 'wcol', 'wsec', 'wlen'].includes(cb)) histSnap();
 
+  if (cb === 'camino' && c) {
+    const cs = caminoReceptor(c);
+    if (cs && cs.size) {
+      S.hl = cs; S.sel = null;
+      closeSheet(); render();
+      toast('Camino fase → receptor → neutro resaltado. Toca en el vacío para quitarlo.');
+    } else toast('No hay un camino cerrado hasta la red.');
+    return;
+  }
   if (cb === 'duplicar' && c) {
     const d = defOf(c);
     histSnap();

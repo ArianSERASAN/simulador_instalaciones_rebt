@@ -189,6 +189,7 @@ function menuModal() {
   openModal(`<div class="mTitle">Menú</div>
     <button class="mItem" data-m="retos"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6" fill="none" stroke="#f4b942" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Retos guiados<small>Ejercicios paso a paso con corrección automática</small></div></button>
     <button class="mItem" data-m="averias"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z" fill="none" stroke="#e5533d" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.2" stroke="#e5533d" stroke-width="2" stroke-linecap="round"/></svg></span><div>Modo Avería<small>Te genera un montaje con un fallo oculto: encuéntralo</small></div></button>
+    <button class="mItem" data-m="medir"><span class="mi-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#8de2ae" stroke-width="2"/><path d="M12 12l4-4" stroke="#8de2ae" stroke-width="2" stroke-linecap="round"/><path d="M7 21l-2 1M17 21l2 1" stroke="#8de2ae" stroke-width="2" stroke-linecap="round"/></svg></span><div>Multímetro<small>Toca dos bornes y mide tensión y continuidad</small></div></button>
     <button class="mItem" data-m="lab"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M10 3v6L4.5 19a1.8 1.8 0 0 0 1.6 2.6h11.8a1.8 1.8 0 0 0 1.6-2.6L14 9V3" fill="none" stroke="#37c26e" stroke-width="2" stroke-linejoin="round"/><path d="M8 3h8M7 15h10" stroke="#37c26e" stroke-width="2" stroke-linecap="round"/></svg></span><div>${S.lab ? 'Volver al simulador REBT' : 'Laboratorio de circuitos'}<small>${S.lab ? 'Tu montaje REBT sigue guardado' : 'Pila, bombillas, serie/paralelo y medidas reales'}</small></div></button>
     <button class="mItem" data-m="montajes"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z M8 4v5h7V4 M8 20v-6h8v6" fill="none" stroke="#4d8dee" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Mis montajes<small>Guardar y cargar (funciona sin conexión)</small></div></button>
     <button class="mItem" data-m="tabla"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 10h16 M4 15h16 M10 5v14" fill="none" stroke="#37c26e" stroke-width="2"/></svg></span><div>Tabla REBT<small>Circuitos C1–C5, secciones y calibres (ITC-BT-25)</small></div></button>
@@ -275,6 +276,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
   else if (m === 'lab') toggleLab(!S.lab);
   else if (m === 'rehacer') { redo(); closeModal(); }
+  else if (m === 'medir') { setMedir(true); closeModal(); }
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
   else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }
