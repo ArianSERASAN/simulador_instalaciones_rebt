@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [Sin publicar]
+
+### Añadido
+- `ROADMAP.md`: plan por fases de las mejoras acordadas (instalaciones de
+  enlace ITC-BT-12 completas con trifásica, laboratorio de circuitos con
+  solver real, modos examen y proyecto).
+- `tests/run.mjs`: harness de verificación headless (Playwright). Sirve la
+  app por http, ejecuta 16 escenarios contra el motor real (cortos, fugas,
+  sobrecargas, selectividad, conmutadas, telerruptor, enlace, guardado) y
+  falla si hay errores JS. Ejecutar con `node tests/run.mjs`.
+
 ## [v1.1.0] — Estructura modular
 
 ### Cambiado

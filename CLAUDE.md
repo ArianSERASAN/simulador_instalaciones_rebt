@@ -63,11 +63,13 @@ empujando a `msgs`. Citar siempre la **ITC** correspondiente en fichas y avisos.
 
 ```
 python3 -m http.server 8000        # abrir http://localhost:8000 (activa el SW)
+/opt/node22/bin/node tests/run.mjs # pruebas headless del motor (Playwright)
 ```
 No abrir con `file://` si se quiere probar el service worker. Cuando un cambio
 afecte a la lógica (simulación, gestos, cálculos), **verificar el comportamiento**
-en navegador headless (Playwright en `/opt/node22/lib/node_modules`) antes de
-publicar, no solo revisar el código.
+en navegador headless antes de publicar, no solo revisar el código: ejecutar
+`tests/run.mjs` (y añadir allí escenarios para lo nuevo). El plan de mejoras
+por fases vive en `ROADMAP.md`.
 
 ---
 
