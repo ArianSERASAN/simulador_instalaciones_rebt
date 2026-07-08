@@ -4,7 +4,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
-## [Sin publicar]
+## [v2.0.0] — Enlace ITC-BT-12 completo, trifásica, laboratorio y examen
 
 ### Añadido — Fase 7: examen IBTB y previsión de cargas
 - **Examen tipo test** (menú, `src/11-modos.js`): banco de **44 preguntas**
