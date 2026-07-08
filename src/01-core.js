@@ -40,6 +40,7 @@ const store = (() => {
 
 /* ---------- constantes REBT (valores verificados) ---------- */
 const V_RED = 230;
+const V_LL = 400;                 // tensión entre fases (suministro trifásico)
 const RHO_CU = 0.0172;            // Ω·mm²/m
 const CAIDA_MAX = 3;              // % en viviendas (ITC-BT-19)
 const MAX_PIA_SECCION = { '1.5': 10, '2.5': 16, '4': 20, '6': 25, '10': 40 };
@@ -60,7 +61,8 @@ const COLORES = {
   tierra: { n: 'Verde-amarillo · tierra', c: '#3f9b3f' }
 };
 const FASE_COLS = ['marron', 'negro', 'gris'];
-const KIND_COL = { L: '#7a4a21', N: '#2e6fd0', PE: '#3f9b3f', X: '#6b7684' };
+const KIND_COL = { L: '#7a4a21', L2: '#2b2b2e', L3: '#8f959c', N: '#2e6fd0', PE: '#3f9b3f', X: '#6b7684' };
+const esKindFase = k => k === 'L' || k === 'L2' || k === 'L3';
 
 /* ---------- mundo ---------- */
 const WORLD = { w: 800, h: 1180 };

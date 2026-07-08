@@ -384,30 +384,102 @@ Object.assign(DEFS, {
 });
 
 /* ==================================================================
+   SUMINISTRO TRIFÁSICO Y RECEPTOR TRIFÁSICO
+   ================================================================== */
+Object.assign(DEFS, {
+
+  red3: {
+    nombre: 'Red trifásica 400/230 V', corto: 'Red 3~',
+    w: 196, h: 62, din: false, unico: true,
+    terms: [
+      { id: 'L1', x: 40, y: 62, kind: 'L', lbl: 'L1' }, { id: 'L2', x: 80, y: 62, kind: 'L2', lbl: 'L2' },
+      { id: 'L3', x: 120, y: 62, kind: 'L3', lbl: 'L3' }, { id: 'N', x: 160, y: 62, kind: 'N', lbl: 'N' }
+    ],
+    props: () => ({}), state: () => ({}),
+    ficha: fichaTxt(`Suministro trifásico de la compañía: <b>400 V entre fases</b> (L1·L2·L3) y <b>230 V entre cada fase y el neutro</b>. Es el habitual en edificios (la LGA siempre es trifásica) y en locales con motores. Un receptor de 230 V conectado entre dos fases <b>se quema</b>. <span class="itc">ITC-BT-10</span> <span class="itc">ITC-BT-06 a 17</span>`),
+    draw(c, sim, multi) {
+      const w = 196;
+      if (multi) return `
+        <circle cx="${w / 2}" cy="26" r="23" fill="#fff" stroke="#3a4352" stroke-width="1.6"/>
+        <text x="${w / 2}" y="24" font-size="13" fill="#3a4352" text-anchor="middle" font-weight="700">3~</text>
+        <text x="${w / 2}" y="38" font-size="9" fill="#3a4352" text-anchor="middle" font-weight="700">400 V</text>
+        <line x1="40" y1="44" x2="40" y2="62" stroke="#3a4352" stroke-width="2"/>
+        <line x1="80" y1="47" x2="80" y2="62" stroke="#3a4352" stroke-width="2"/>
+        <line x1="120" y1="47" x2="120" y2="62" stroke="#3a4352" stroke-width="2"/>
+        <line x1="160" y1="44" x2="160" y2="62" stroke="#3a4352" stroke-width="2"/>`;
+      return `
+        <rect x="2" y="2" width="${w - 4}" height="54" rx="9" fill="#232a35" stroke="#3c4553"/>
+        <path d="M26 12 L18 30 h7 l-5 15 13 -19 h-7 l7 -14 z" fill="#f4b942"/>
+        <path d="M44 12 L36 30 h7 l-5 15 13 -19 h-7 l7 -14 z" fill="#f4b942" opacity=".75"/>
+        <path d="M62 12 L54 30 h7 l-5 15 13 -19 h-7 l7 -14 z" fill="#f4b942" opacity=".5"/>
+        <text x="${w / 2 + 30}" y="27" font-size="12" fill="#eef2f7" text-anchor="middle" font-weight="700">RED 3~</text>
+        <text x="${w / 2 + 30}" y="41" font-size="10" fill="#9fb0c5" text-anchor="middle">400 / 230 V</text>`;
+    }
+  },
+
+  motor3: {
+    nombre: 'Motor trifásico', corto: 'Motor 3~',
+    w: 104, h: 104, din: false, load3: true,
+    terms: [
+      { id: 'L1', x: 20, y: 0, kind: 'L', lbl: 'L1' }, { id: 'L2', x: 44, y: 0, kind: 'L2', lbl: 'L2' },
+      { id: 'L3', x: 68, y: 0, kind: 'L3', lbl: 'L3' }, { id: 'PE', x: 92, y: 0, kind: 'PE', lbl: 'PE' }
+    ],
+    props: () => ({ potencia: 2200, fp: 0.85 }), state: () => ({}),
+    ficha: fichaTxt(`Motor de <b>400 V</b>: necesita las <b>tres fases</b> (y su carcasa a tierra). Reparte la carga entre fases y para la misma potencia demanda menos corriente que uno monofásico: I = P / (√3 · 400 · cos φ). Si le falta una fase no arranca (y en la realidad se quemaría por desequilibrio). <span class="itc">ITC-BT-47</span>`),
+    fichaExtra: (c, inst) => inst ? `<div class="shRow"><label>Potencia</label>${chipProp(c, 'potencia', [1100, 2200, 4000, 7500], v => v + ' W')}</div>` : '',
+    draw(c, sim, multi) {
+      const on = sim && sim.lit[c.id];
+      if (multi) return `
+        <line x1="20" y1="0" x2="20" y2="34" stroke="#3a4352" stroke-width="2"/>
+        <line x1="44" y1="0" x2="44" y2="34" stroke="#3a4352" stroke-width="2"/>
+        <line x1="68" y1="0" x2="68" y2="34" stroke="#3a4352" stroke-width="2"/>
+        <line x1="92" y1="0" x2="92" y2="46" stroke="#3f9b3f" stroke-width="2"/>
+        <circle cx="44" cy="56" r="20" fill="${on ? '#e6f4ea' : '#fff'}" stroke="#3a4352" stroke-width="1.8"/>
+        <text x="44" y="54" font-size="12" fill="#3a4352" text-anchor="middle" font-weight="700">M</text>
+        <text x="44" y="66" font-size="9" fill="#3a4352" text-anchor="middle" font-weight="700">3~</text>
+        <text x="44" y="92" font-size="9" fill="#6b7482" text-anchor="middle">${c.props.potencia} W</text>`;
+      return `
+        <rect x="10" y="30" width="68" height="46" rx="8" fill="#7a8496" stroke="#5d6573"/>
+        <path d="M10 38 h68 M10 46 h68 M10 54 h68 M10 62 h68" stroke="#6a7383" stroke-width="2"/>
+        <circle cx="44" cy="53" r="14" fill="#e2e6eb" stroke="#5d6573"/>
+        <g ${on ? '' : 'opacity=".45"'}>
+          <path d="M44 42 v22 M33 53 h22" stroke="#3f4754" stroke-width="3" stroke-linecap="round">
+            ${on ? `<animateTransform attributeName="transform" type="rotate" from="0 44 53" to="360 44 53" dur="0.6s" repeatCount="indefinite"/>` : ''}
+          </path>
+        </g>
+        <rect x="80" y="42" width="10" height="22" rx="2" fill="#5d6573"/>
+        <text x="44" y="92" font-size="8.5" fill="#4a5261" text-anchor="middle" font-weight="700">MOTOR 3~ · ${c.props.potencia} W</text>`;
+    }
+  }
+});
+
+/* ==================================================================
    PALETA POR CATEGORÍAS
    ================================================================== */
 const PAL_CATS = [
   { id: 'cuadro', n: 'Cuadro y tierra', items: ['iga', 'dif', 'pia', 'borne', 'pica'] },
-  { id: 'enlace', n: 'Enlace', items: ['red', 'cgp', 'contador', 'icp'] },
+  { id: 'enlace', n: 'Enlace', items: ['red', 'red3', 'cgp', 'contador', 'icp'] },
   { id: 'maniobras', n: 'Maniobras', items: ['int', 'conm', 'cruz', 'puls', 'tele', 'minut', 'presencia', 'crepus', 'prog'] },
-  { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor'] }
+  { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor', 'motor3'] }
 ];
 
 /* ==================================================================
    BOLETÍN DE CONFORMIDAD (modo Reglamento)
    ================================================================== */
 function ordenEnlaceOK() {
-  const red = S.comps.find(c => c.type === 'red');
+  const sup = getSupply();
   const cgp = S.comps.find(c => c.type === 'cgp');
   const cont = S.comps.find(c => c.type === 'contador');
   const icp = S.comps.find(c => c.type === 'icp');
   const iga = S.comps.find(c => c.type === 'iga');
-  if (!red || !cgp || !cont || !icp) return false;
+  if (!sup || !cgp || !cont || !icp) return false;
   const pot = buildUF({ allClosed: true });
-  const fed = (tg, ti) => pot.f(K(tg.id, ti)) === pot.f(K(red.id, 'L'));
+  const potPhs = sup.phases.map(t => pot.f(K(sup.comp.id, t)));
+  const fed = (tg, ti) => potPhs.includes(pot.f(K(tg.id, ti)));
   const cortaA = (quien, tg, ti) => {
     const t = buildUF({ allClosed: true, open: { [quien.id]: true } });
-    return t.f(K(tg.id, ti)) !== t.f(K(red.id, 'L'));
+    const tPhs = sup.phases.map(p => t.f(K(sup.comp.id, p)));
+    return !tPhs.includes(t.f(K(tg.id, ti)));
   };
   return fed(cgp, 'Li') && fed(cont, 'Li') && fed(icp, 'Li') &&
     cortaA(cgp, cont, 'Li') && cortaA(cont, icp, 'Li') && (!iga || cortaA(icp, iga, 'Li'));

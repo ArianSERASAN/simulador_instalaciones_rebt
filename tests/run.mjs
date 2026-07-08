@@ -222,6 +222,113 @@ const TESTS = [
     if (S.comps.length !== n || S.wires.length !== w) return 'se perdieron componentes o cables';
     update();
     return null;
+  })],
+
+  /* ---------- Fase 1: red trifásica ---------- */
+
+  ['red3: luz entre L1 y N enciende a 230 V', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const luz = mkComp('luz', 300, 500);
+    mkWire(r, 'L1', luz, 'L', 'marron');
+    mkWire(r, 'N', luz, 'N', 'azul');
+    update();
+    if (!SIM.lit[luz.id]) return 'la luz debería encender entre fase y neutro';
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    return null;
+  })],
+
+  ['red3: luz entre dos fases se quema (400 V) y se puede sustituir', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const luz = mkComp('luz', 300, 500);
+    mkWire(r, 'L1', luz, 'L', 'marron');
+    mkWire(r, 'L2', luz, 'N', 'negro');
+    update();
+    if (!luz.state.quemado) return 'la luz debería quemarse a 400 V';
+    if (SIM.lit[luz.id]) return 'una luz quemada no puede lucir';
+    if (!__t.hasMsg('err', 'DOS FASES')) return 'falta el mensaje de sobretensión';
+    // sustituir y recablear bien
+    luz.state.quemado = false;
+    S.wires = S.wires.filter(w => !(w.b.c === luz.id && w.b.t === 'N'));
+    mkWire(r, 'N', luz, 'N', 'azul');
+    update();
+    return SIM.lit[luz.id] ? null : 'tras sustituirla y recablear debería lucir';
+  })],
+
+  ['red3: cortocircuito entre fases sin protecciones', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    mkWire(r, 'L1', r, 'L2', 'marron');
+    update();
+    if (SIM.fault !== 'corto') return 'esperaba fault corto';
+    if (!__t.hasMsg('err', 'dos fases')) return 'el mensaje debería citar el corto entre fases';
+    return null;
+  })],
+
+  ['red3: corto aguas abajo de un PIA en L3 dispara el PIA', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const pia = mkComp('pia', 270, DIN_Y, { calibre: 16 }, { on: true });
+    mkWire(r, 'L3', pia, 'Li', 'gris');
+    mkWire(r, 'N', pia, 'Ni', 'azul');
+    mkWire(pia, 'Lo', pia, 'No', 'gris');
+    update();
+    return pia.state.trip ? null : 'el PIA debería disparar por el corto L3-N';
+  })],
+
+  ['motor trifásico: funciona con tres fases y tierra', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const m = mkComp('motor3', 300, 500);
+    const pica = mkComp('pica', 150, 700);
+    mkWire(r, 'L1', m, 'L1', 'marron');
+    mkWire(r, 'L2', m, 'L2', 'negro');
+    mkWire(r, 'L3', m, 'L3', 'gris');
+    mkWire(m, 'PE', pica, 'PE', 'tierra');
+    update();
+    if (!SIM.lit[m.id]) return 'el motor 3~ debería girar con las tres fases';
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    return null;
+  })],
+
+  ['motor trifásico: con dos fases no arranca y avisa', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const m = mkComp('motor3', 300, 500);
+    const pica = mkComp('pica', 150, 700);
+    mkWire(r, 'L1', m, 'L1', 'marron');
+    mkWire(r, 'L2', m, 'L2', 'negro');
+    mkWire(m, 'PE', pica, 'PE', 'tierra');
+    update();
+    if (SIM.lit[m.id]) return 'no debería girar con solo dos fases';
+    return __t.hasMsg('err', 'falta una fase') ? null : 'falta el aviso de fase ausente';
+  })],
+
+  ['red3: fuga de una fase a tierra sin diferencial', async page => page.evaluate(() => {
+    __t.reset();
+    const r = mkComp('red3', 300, 20);
+    const pica = mkComp('pica', 150, 700);
+    mkWire(r, 'L2', pica, 'PE', 'negro');
+    update();
+    return SIM.fault === 'fuga' ? null : 'esperaba fault fuga por L2 a tierra';
+  })],
+
+  ['red3: la instalación mono de referencia funciona colgada de L1', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarVivienda();
+    // sustituir la red mono por la trifásica, alimentando el IGA desde L1
+    S.wires = S.wires.filter(w => w.a.c !== m.red.id && w.b.c !== m.red.id);
+    S.comps = S.comps.filter(c => c.id !== m.red.id);
+    const r3 = mkComp('red3', 280, 20);
+    mkWire(r3, 'L1', m.iga, 'Li', 'marron');
+    mkWire(r3, 'N', m.iga, 'Ni', 'azul');
+    update();
+    if (!SIM.lit[m.luz.id]) return 'la luz debería encender alimentada desde L1';
+    const st = SIM.tomas[m.toma.id];
+    if (!st || !st.tension || !st.tierra) return 'la toma debería tener tensión y tierra';
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    return null;
   })]
 ];
 

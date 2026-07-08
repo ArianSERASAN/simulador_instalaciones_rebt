@@ -71,6 +71,10 @@ function compSVG(c) {
   let s = `<g id="c${c.id}" data-comp="${c.id}" transform="translate(${r1(c.x)} ${r1(c.y)})">`;
   if (S.sel === c.id) s += `<rect class="csel" x="-8" y="-8" width="${d.w + 16}" height="${d.h + 16}" rx="8"/>`;
   s += drawBody(c, SIM);
+  if (c.state && c.state.quemado) {
+    s += `<g class="tripmark"><rect x="${d.w / 2 - 30}" y="${d.h / 2 - 10}" width="60" height="20" rx="5" fill="#e5533d" opacity=".92"/>
+      <text x="${d.w / 2}" y="${d.h / 2 + 4}" font-size="10" fill="#fff" text-anchor="middle" font-weight="800">QUEMADO</text></g>`;
+  }
   for (const t of d.terms) {
     const hot = wireDraft && wireDraft.from.c === c.id && wireDraft.from.t === t.id;
     s += `<circle class="term" cx="${t.x}" cy="${t.y}" r="6.2" fill="${KIND_COL[t.kind]}"/>`;
@@ -176,6 +180,8 @@ function addWire(a, b) {
   let color = 'marron';
   if (ka === 'PE' || kb === 'PE') color = 'tierra';
   else if (ka === 'N' || kb === 'N') color = 'azul';
+  else if (ka === 'L2' || kb === 'L2') color = 'negro';
+  else if (ka === 'L3' || kb === 'L3') color = 'gris';
   else if (ka === 'X' && kb === 'X') color = 'negro';
   else if (ka === 'X' || kb === 'X') color = (ka === 'L' || kb === 'L') ? 'marron' : 'negro';
   S.wires.push({ id: 'w' + (S.nextId++), a, b, color, sec: 2.5, len: 5 });
@@ -466,6 +472,7 @@ function showFicha(c) {
     const st = SIM.tomas[c.id];
     estado = st && st.tension ? ('con tensión' + (st.tierra ? ' · tierra OK' : ' · SIN tierra')) : 'sin tensión';
   }
+  if (c.state.quemado) estado = `QUEMADO por sobretensión (${V_LL} V entre fases)`;
   if (estado) h += `<div class="shSub">Estado: ${esc(estado)}</div>`;
   h += `<div class="shDesc">${d.ficha}</div>`;
 
@@ -498,6 +505,7 @@ function showFicha(c) {
   if (d.fichaExtra) h += d.fichaExtra(c, inst);
 
   h += `<div class="shBtns">`;
+  if (c.state.quemado) h += `<button class="bigbtn grn" data-cb="reparar">Sustituir</button>`;
   if (d.act === 'palanca') h += `<button class="bigbtn pri" data-cb="accionar">${c.state.trip ? 'Rearmar' : (c.state.on ? 'Bajar palanca' : 'Subir palanca')}</button>`;
   if (d.act === 'tecla') h += `<button class="bigbtn pri" data-cb="accionar">Accionar</button>`;
   h += `<button class="bigbtn red" data-cb="borrar">Eliminar</button></div>`;
@@ -539,6 +547,7 @@ sheetBody.addEventListener('click', e => {
   else if (cb === 'carga' && c) c.props.carga = Number(v);
   else if (cb === 'fp' && c) c.props.fp = Number(v);
   else if (cb === 'accionar' && c) { doAct({ c: c.id, a: defOf(c).act }); showFicha(byId(c.id)); return; }
+  else if (cb === 'reparar' && c) { c.state.quemado = false; toast('Receptor sustituido por uno nuevo'); }
   else if (cb === 'borrar' && c) { delComp(c.id); closeSheet(); return; }
   else if (cb === 'prop' && c) c.props[b.dataset.k] = (b.dataset.num === '0') ? v : Number(v);
   else if (cb === 'propStep' && c) {

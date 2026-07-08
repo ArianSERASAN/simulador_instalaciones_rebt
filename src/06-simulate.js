@@ -1,28 +1,36 @@
 /* ==================================================================
    SIMULACIÓN PRINCIPAL
+   Trabaja sobre el suministro activo (mono o trifásico): `phs` es la
+   lista de raíces de fase y `nu` la del neutro en el grafo actual.
    ================================================================== */
 function simulate() {
   const msgs = [];
   const res = { msgs, lit: {}, vlit: {}, tomas: {}, liveW: {}, circuits: [], difConTension: {}, sinRed: false, fault: null,
     totalP: 0, totalI: 0, coloresMal: 0, igaOK: true };
-  const red = S.comps.find(c => c.type === 'red');
+  const sup = getSupply();
   const picas = S.comps.filter(c => c.type === 'pica');
   const inst = S.mode !== 'aprendiz';
-  if (!red) { res.sinRed = true; msgs.push({ lvl: 'info', txt: 'Añade la Red 230 V (barra inferior) para dar tensión a la instalación.' }); }
+  if (!sup) { res.sinRed = true; msgs.push({ lvl: 'info', txt: 'Añade la Red 230 V o la Red trifásica (pestaña Enlace) para dar tensión a la instalación.' }); }
+  if (sup && sup.tri && S.comps.some(c => c.type === 'red')) {
+    msgs.push({ lvl: 'warn', txt: 'Hay dos puntos de suministro (red monofásica y trifásica): se usa la trifásica. Elimina uno de los dos.' });
+  }
 
-  const topo = circuitosTopo(red);
-  let uf = buildUF(), phase = null, neutral = null;
+  const topo = circuitosTopo(sup);
+  let uf = buildUF(), phs = [], nu = null;
   let guard = 0;
 
-  while (red) {
+  while (sup) {
     uf = buildUF();
-    phase = uf.f(K(red.id, 'L'));
-    neutral = uf.f(K(red.id, 'N'));
+    ({ phs, nu } = supRoots(uf, sup));
     const es = new Set(picas.map(p => uf.f(K(p.id, 'PE'))));
     if (guard++ > 12) break;
 
-    /* --- cortocircuito --- */
-    if (phase === neutral) {
+    /* --- cortocircuito (fase-neutro o fase-fase) --- */
+    const corto = hayCorto(phs, nu);
+    if (corto) {
+      const termsSum = [...sup.phases, 'N'];
+      const tA = termsSum[corto.i], tB = termsSum[corto.j];
+      const esFF = corto.faseFase;
       const orden = { pia: 0, iga: 1, icp: 2, cgp: 3 };   // selectividad
       const cands = S.comps.filter(c =>
         ((c.type === 'pia' || c.type === 'iga' || c.type === 'icp') && c.state.on && !c.state.trip) ||
@@ -31,42 +39,44 @@ function simulate() {
       let disp = null;
       for (const c of cands) {
         const t = buildUF({ open: { [c.id]: true } });
-        if (t.f(K(red.id, 'L')) !== t.f(K(red.id, 'N'))) { disp = c; break; }
+        if (t.f(K(sup.comp.id, tA)) !== t.f(K(sup.comp.id, tB))) { disp = c; break; }
       }
+      const donde = esFF ? `¡Cortocircuito entre dos fases (${V_LL} V)!` : '¡Cortocircuito! Fase y neutro se tocan sin pasar por ningún receptor.';
       if (disp) {
         if (disp.type === 'cgp') {
           disp.state.fundido = true;
-          msgs.push({ lvl: 'err', txt: '¡Cortocircuito aguas arriba del cuadro! Se han fundido los fusibles de la CGP: corrige el cableado y sustitúyelos (toca la CGP).', itc: 'ITC-BT-13 · ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la CGP: corrige el cableado y sustitúyelos (toca la CGP).`, itc: 'ITC-BT-13 · ITC-BT-22' });
         } else {
           disp.state.trip = true; disp.state.on = false;
           const quien = disp.type === 'iga' ? 'el IGA' : (disp.type === 'icp' ? 'el ICP' : 'el PIA de ' + disp.props.calibre + ' A');
-          msgs.push({ lvl: 'err', txt: `¡Cortocircuito! Fase y neutro se tocan sin pasar por ningún receptor. Ha disparado ${quien}: corrige el cableado y reármalo.`, itc: 'ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Ha disparado ${quien}: corrige el cableado y reármalo.`, itc: 'ITC-BT-22' });
         }
         continue;
       }
-      msgs.push({ lvl: 'err', txt: '¡Cortocircuito! Fase y neutro unidos directamente, sin ninguna protección conectada que pueda despejarlo.', itc: 'ITC-BT-22' });
+      msgs.push({ lvl: 'err', txt: `${donde} No hay ninguna protección conectada que pueda despejarlo.`, itc: 'ITC-BT-22' });
       res.fault = 'corto';
       break;
     }
 
     /* --- fuga a tierra --- */
-    const fugaF = es.has(phase), fugaN = es.has(neutral);
+    const fugaF = phs.some(p => es.has(p)), fugaN = es.has(nu);
     if (fugaF || fugaN) {
       let disp = null;
       for (const c of S.comps.filter(c => c.type === 'dif' && c.state.on && !c.state.trip)) {
         const t = buildUF({ open: { [c.id]: true } });
         const es2 = new Set(picas.map(p => t.f(K(p.id, 'PE'))));
-        if (!es2.has(t.f(K(red.id, 'L'))) && !es2.has(t.f(K(red.id, 'N')))) { disp = c; break; }
+        const r2s = supRoots(t, sup);
+        if (!r2s.phs.some(p => es2.has(p)) && !es2.has(r2s.nu)) { disp = c; break; }
       }
       if (disp) {
         disp.state.trip = true; disp.state.on = false;
         msgs.push({ lvl: 'err', txt: fugaF
-          ? 'Derivación a tierra: la fase toca el circuito de protección y el diferencial ha disparado (fuga > 30 mA). Revisa el cableado y reármalo.'
+          ? 'Derivación a tierra: una fase toca el circuito de protección y el diferencial ha disparado (fuga > 30 mA). Revisa el cableado y reármalo.'
           : 'El neutro está unido a tierra y el diferencial ha disparado por corriente de fuga. Sepáralos y reármalo.', itc: 'ITC-BT-24' });
         continue;
       }
       if (fugaF) {
-        msgs.push({ lvl: 'err', txt: 'La fase está derivada a tierra y NO hay diferencial que pueda despejar la fuga: riesgo grave de contacto indirecto.', itc: 'ITC-BT-24' });
+        msgs.push({ lvl: 'err', txt: 'Una fase está derivada a tierra y NO hay diferencial que pueda despejar la fuga: riesgo grave de contacto indirecto.', itc: 'ITC-BT-24' });
         res.fault = 'fuga';
         break;
       }
@@ -80,7 +90,7 @@ function simulate() {
         const d = defOf(c);
         if (!d.coil) continue;
         const a = uf.f(K(c.id, 'A1')), b2 = uf.f(K(c.id, 'A2'));
-        const exc = (a === phase && b2 === neutral) || (a === neutral && b2 === phase);
+        const exc = (phs.includes(a) && b2 === nu) || (a === nu && phs.includes(b2));
         if (exc && !c.state.exc) { c.state.exc = true; d.onPulse(c); cambio = true; }
         else if (!exc && c.state.exc) c.state.exc = false;
       }
@@ -89,7 +99,7 @@ function simulate() {
 
     /* --- sobrecarga por circuito (con números → modos con cálculo) --- */
     if (inst) {
-      const fl = energFlags(uf, red, true);
+      const fl = energFlags(uf, sup, true);
       let alguna = false;
       for (const ce of topo) {
         if (!ce.pia.state.on || ce.pia.state.trip) continue;
@@ -105,7 +115,7 @@ function simulate() {
         const dt = demandaTotal(fl);
         for (const icp of S.comps.filter(c => c.type === 'icp')) {
           if (!icp.state.on || icp.state.trip) continue;
-          if (uf.f(K(icp.id, 'Li')) !== phase) continue;
+          if (!phs.includes(uf.f(K(icp.id, 'Li')))) continue;
           if (dt.I > icp.props.calibre + 0.001) {
             icp.state.trip = true; icp.state.on = false;
             msgs.push({ lvl: 'err', txt: `Has superado la potencia contratada: la instalación demanda ${fmtNum(r1(dt.I))} A y el ICP es de ${icp.props.calibre} A → ha disparado. Apaga algún aparato y reármalo.`, itc: 'ITC-BT-17' });
@@ -118,36 +128,54 @@ function simulate() {
     break;
   }
 
-  const energia = !!red && !res.fault;
+  const energia = !!sup && !res.fault;
+
+  /* --- receptor monofásico entre dos fases: 400 V, se quema --- */
+  let quemadoNuevo = false;
+  if (energia && sup.tri) {
+    for (const c of S.comps.filter(c => c.type === 'luz' || defOf(c).load)) {
+      const a = uf.f(K(c.id, 'L')), b = uf.f(K(c.id, 'N'));
+      if (phs.includes(a) && phs.includes(b) && a !== b && !c.state.quemado) {
+        c.state.quemado = true; quemadoNuevo = true;
+        msgs.push({ lvl: 'err', txt: `Un receptor de 230 V está conectado entre DOS FASES: recibe ${V_LL} V y se ha quemado. Conéctalo entre una fase y el neutro y sustitúyelo desde su ficha.`, itc: 'ITC-BT-10 · ITC-BT-19' });
+      }
+    }
+  }
+  if (!quemadoNuevo && S.comps.some(c => c.state && c.state.quemado)) {
+    msgs.push({ lvl: 'warn', txt: 'Hay algún receptor quemado por sobretensión: tócalo y pulsa «Sustituir» en su ficha.' });
+  }
+
   const earthSet = new Set(picas.map(p => uf.f(K(p.id, 'PE'))));
-  const fl = energFlags(uf, red, energia);
+  const fl = energFlags(uf, sup, energia);
   res.lit = fl.lit; res.tomas = fl.tomas;
   const dtot = demandaTotal(fl);
   res.totalP = dtot.P; res.totalI = dtot.I;
 
   /* potencial: todo cerrado (para diagnósticos «qué falta») */
-  const pot = red ? buildUF({ allClosed: true }) : null;
-  const potPh = red ? pot.f(K(red.id, 'L')) : null;
-  const potNu = red ? pot.f(K(red.id, 'N')) : null;
-  const potEarth = red ? new Set(picas.map(p => pot.f(K(p.id, 'PE')))) : new Set();
-  const potCorto = red && potPh === potNu;
+  const pot = sup ? buildUF({ allClosed: true }) : null;
+  const potR = sup ? supRoots(pot, sup) : { phs: [], nu: null };
+  const potEarth = sup ? new Set(picas.map(p => pot.f(K(p.id, 'PE')))) : new Set();
+  const potCorto = sup && !!hayCorto(potR.phs, potR.nu);
+  const okParPot = (a, b) => (potR.phs.includes(a) && b === potR.nu) || (a === potR.nu && potR.phs.includes(b));
+  const dosFasesPot = (a, b) => potR.phs.includes(a) && potR.phs.includes(b) && a !== b;
 
   /* --- diagnóstico de puntos de luz --- */
   let avisoListas = false;
   for (const c of S.comps.filter(c => c.type === 'luz')) {
-    if (!red) break;
+    if (!sup) break;
+    if (c.state.quemado) continue;                 // ya avisado arriba
     const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
     if (res.lit[c.id]) {
-      if (uf.f(K(c.id, 'L')) === neutral) msgs.push({ lvl: 'warn', txt: 'En un punto de luz, fase y neutro llegan intercambiados: luce igual, pero la fase debe llegar al portalámparas a través del interruptor.', itc: 'ITC-BT-19' });
+      if (uf.f(K(c.id, 'L')) === nu) msgs.push({ lvl: 'warn', txt: 'En un punto de luz, fase y neutro llegan intercambiados: luce igual, pero la fase debe llegar al portalámparas a través del interruptor.', itc: 'ITC-BT-19' });
       continue;
     }
     if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un punto de luz sin conectar.' }); continue; }
     if (potCorto) continue;
     const pa = pot.f(K(c.id, 'L')), pb = pot.f(K(c.id, 'N'));
-    const okPot = (pa === potPh && pb === potNu) || (pa === potNu && pb === potPh);
-    if (okPot) { if (energia && !avisoListas) { msgs.push({ lvl: 'info', txt: 'Hay alguna bombilla lista para funcionar: acciona su interruptor o sube las protecciones.' }); avisoListas = true; } continue; }
-    const llegaF = pa === potPh || pb === potPh;
-    const llegaN = pa === potNu || pb === potNu;
+    if (dosFasesPot(pa, pb)) continue;             // acabaría quemado: mensaje de 400 V
+    if (okParPot(pa, pb)) { if (energia && !avisoListas) { msgs.push({ lvl: 'info', txt: 'Hay alguna bombilla lista para funcionar: acciona su interruptor o sube las protecciones.' }); avisoListas = true; } continue; }
+    const llegaF = potR.phs.includes(pa) || potR.phs.includes(pb);
+    const llegaN = pa === potR.nu || pb === potR.nu;
     if (!llegaN) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega el neutro: tiéndele un cable azul directo desde la salida N de su PIA.', itc: 'ITC-BT-19' });
     if (!llegaF) msgs.push({ lvl: 'err', txt: 'A un punto de luz no le llega la fase: revisa el camino PIA → interruptor → lámpara.', itc: 'ITC-BT-19' });
     if (llegaF && llegaN) msgs.push({ lvl: 'err', txt: 'Un punto de luz recibe dos veces el mismo conductor: debe recibir una fase y un neutro distintos.' });
@@ -155,7 +183,7 @@ function simulate() {
 
   /* --- diagnóstico de tomas --- */
   for (const c of S.comps.filter(c => c.type === 'toma')) {
-    if (!red) break;
+    if (!sup) break;
     const st = res.tomas[c.id];
     const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
     if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay una base de enchufe sin conectar.' }); continue; }
@@ -163,13 +191,28 @@ function simulate() {
     if (!st.tierra) msgs.push({ lvl: 'err', txt: 'Una toma de corriente no tiene tierra: une su borne PE con cable verde-amarillo hasta el borne principal y la pica.', itc: 'ITC-BT-18 · ITC-BT-26' });
     if (!st.tension && !potCorto) {
       const pa = pot.f(K(c.id, 'L')), pb = pot.f(K(c.id, 'N'));
-      const okPot = (pa === potPh && pb === potNu) || (pa === potNu && pb === potPh);
-      if (okPot) { if (energia) msgs.push({ lvl: 'info', txt: 'Hay una toma lista: sube las protecciones para darle tensión.' }); }
+      if (dosFasesPot(pa, pb)) { msgs.push({ lvl: 'err', txt: `Una toma está conectada entre DOS FASES (${V_LL} V): quemaría lo que se enchufe. Debe recibir una fase y el neutro.`, itc: 'ITC-BT-10 · ITC-BT-19' }); continue; }
+      if (okParPot(pa, pb)) { if (energia) msgs.push({ lvl: 'info', txt: 'Hay una toma lista: sube las protecciones para darle tensión.' }); }
       else {
-        if (!(pa === potNu || pb === potNu)) msgs.push({ lvl: 'err', txt: 'A una toma no le llega el neutro (cable azul desde la salida N del PIA).', itc: 'ITC-BT-19' });
-        if (!(pa === potPh || pb === potPh)) msgs.push({ lvl: 'err', txt: 'A una toma no le llega la fase (cable marrón desde la salida L del PIA).', itc: 'ITC-BT-19' });
+        if (!(pa === potR.nu || pb === potR.nu)) msgs.push({ lvl: 'err', txt: 'A una toma no le llega el neutro (cable azul desde la salida N del PIA).', itc: 'ITC-BT-19' });
+        if (!(potR.phs.includes(pa) || potR.phs.includes(pb))) msgs.push({ lvl: 'err', txt: 'A una toma no le llega la fase (cable marrón desde la salida L del PIA).', itc: 'ITC-BT-19' });
       }
     }
+  }
+
+  /* --- receptores trifásicos --- */
+  for (const c of S.comps.filter(c => defOf(c).load3)) {
+    if (!sup) break;
+    const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
+    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un motor trifásico sin conectar (necesita L1, L2, L3 y tierra).' }); continue; }
+    if (!res.lit[c.id] && energia) {
+      const rs = ['L1', 'L2', 'L3'].map(t => uf.f(K(c.id, t)));
+      const nFases = new Set(rs.filter(r => phs.includes(r))).size;
+      if (!sup.tri) msgs.push({ lvl: 'err', txt: 'Un motor trifásico no puede funcionar con la red monofásica: necesita la Red 3~ de 400 V.', itc: 'ITC-BT-47' });
+      else if (nFases > 0 && nFases < 3) msgs.push({ lvl: 'err', txt: `Al motor trifásico le ${nFases === 2 ? 'falta una fase' : 'faltan dos fases'}: debe recibir L1, L2 y L3 distintas.`, itc: 'ITC-BT-47' });
+      if (rs.some(r => r === nu)) msgs.push({ lvl: 'err', txt: 'El motor trifásico tiene el neutro en un borne de fase: sus tres bornes son solo para fases.', itc: 'ITC-BT-47' });
+    }
+    if (!earthSet.has(uf.f(K(c.id, 'PE')))) msgs.push({ lvl: 'err', txt: 'La carcasa del motor trifásico no está puesta a tierra: une su borne PE al borne principal.', itc: 'ITC-BT-18' });
   }
 
   /* --- tierra general --- */
@@ -178,24 +221,24 @@ function simulate() {
   }
 
   /* --- interruptor cortando el neutro --- */
-  if (red && energia) {
+  if (sup && energia) {
     for (const sw of S.comps.filter(c => c.type === 'int' || c.type === 'conm')) {
       if (sw.type === 'int' && !sw.state.on) continue;
       const net = uf.f(K(sw.id, sw.type === 'int' ? 'p' : 'c'));
-      if (net !== neutral) continue;
+      if (net !== nu) continue;
       const t = buildUF({ open: { [sw.id]: true } });
-      const fl2 = energFlags(t, red, true);
+      const fl2 = energFlags(t, sup, true);
       const apaga = S.comps.some(l => l.type === 'luz' && res.lit[l.id] && !fl2.lit[l.id]);
       if (apaga) msgs.push({ lvl: 'err', txt: 'Un interruptor está cortando el neutro: los aparatos de maniobra deben cortar siempre la fase. Lleva la fase al interruptor y el neutro directo a la lámpara.', itc: 'ITC-BT-19' });
     }
   }
 
   /* --- colores normativos --- */
-  if (red && !potCorto && !potEarth.has(potPh)) {
+  if (sup && !potCorto && !potR.phs.some(p => potEarth.has(p))) {
     const ya = new Set();
     for (const w of S.wires) {
       const n = pot.f(K(w.a.c, w.a.t));
-      const esF = n === potPh, esN = n === potNu, esT = potEarth.has(n);
+      const esF = potR.phs.includes(n), esN = n === potR.nu, esT = potEarth.has(n);
       let k = null, m = null;
       if ((esF || esN) && w.color === 'tierra') { k = 'vk'; m = { lvl: 'err', txt: 'Hay un conductor activo en verde-amarillo: ese color se reserva EXCLUSIVAMENTE para el conductor de protección (tierra).', itc: 'ITC-BT-19' }; }
       else if (esF && w.color === 'azul') { k = 'fa'; m = { lvl: 'warn', txt: 'Hay una fase cableada en azul: el azul se reserva para el neutro. Usa marrón, negro o gris.', itc: 'ITC-BT-19' }; }
@@ -260,11 +303,12 @@ function simulate() {
   }
 
   /* --- IGA en cabecera --- */
-  if (S.comps.some(c => c.type === 'pia') && red && !potCorto) {
+  if (S.comps.some(c => c.type === 'pia') && sup && !potCorto) {
     const igas = S.comps.filter(c => c.type === 'iga');
     const sinIGA = res.circuits.some(ci => ci.fed && !igas.some(g => {
       const t2 = buildUF({ allClosed: true, open: { [g.id]: true } });
-      return t2.f(K(ci.id, 'Li')) !== t2.f(K(red.id, 'L'));
+      const t2R = supRoots(t2, sup);
+      return !t2R.phs.includes(t2.f(K(ci.id, 'Li')));
     }));
     if (igas.length === 0) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Falta el IGA: todo cuadro de vivienda lleva un Interruptor General Automático en cabecera.', itc: 'ITC-BT-17' }); }
     else if (sinIGA) { res.igaOK = false; msgs.push({ lvl: 'warn', txt: 'Hay circuitos con tensión que no pasan por el IGA: debe estar en cabecera, cortando toda la instalación.', itc: 'ITC-BT-17' }); }
@@ -272,14 +316,14 @@ function simulate() {
 
   /* --- diferencial con tensión (para el botón T) --- */
   for (const d of S.comps.filter(c => c.type === 'dif')) {
-    res.difConTension[d.id] = !!(energia && uf.f(K(d.id, 'Li')) === phase);
+    res.difConTension[d.id] = !!(energia && phs.includes(uf.f(K(d.id, 'Li'))));
   }
 
   /* --- cables con tensión (animación) --- */
   if (energia) {
     for (const w of S.wires) {
       const n = uf.f(K(w.a.c, w.a.t));
-      if (n === phase || n === neutral) res.liveW[w.id] = true;
+      if (phs.includes(n) || n === nu) res.liveW[w.id] = true;
     }
   }
 
