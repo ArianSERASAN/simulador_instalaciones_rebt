@@ -183,6 +183,94 @@ function deserialize(str) {
 function getSaves() { try { return JSON.parse(store.get('rebt.saves') || '{}') || {}; } catch (e) { return {}; } }
 
 /* ==================================================================
+   COMPARTIR: exportar/importar archivo y captura como imagen
+   ================================================================== */
+function descargarBlob(blob, nombre) {
+  try {
+    if (navigator.canShare && typeof File === 'function') {
+      const f = new File([blob], nombre, { type: blob.type });
+      if (navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(() => {}); return; }
+    }
+  } catch (e) {}
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+function exportarMontaje() {
+  descargarBlob(new Blob([serialize()], { type: 'application/json' }),
+    (S.lab ? 'laboratorio' : 'montaje') + '-rebt.json');
+  toast('Montaje exportado: guárdalo o compártelo');
+}
+function importarMontaje() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      histSnap();
+      if (deserialize(String(rd.result))) {
+        aplicarModoVista(); fitCamera(); update(); buildPalette(); closeModal();
+        toast('Montaje importado');
+      } else toast('Ese archivo no es un montaje del simulador');
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+}
+
+/* SVG independiente con el montaje completo (recortado a su contenido) */
+function svgCapturaXML() {
+  if (!S.comps.length) return null;
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const c of S.comps) {
+    const d = defOf(c);
+    minX = Math.min(minX, c.x - 24); minY = Math.min(minY, c.y - 44);
+    maxX = Math.max(maxX, c.x + d.w + 24); maxY = Math.max(maxY, c.y + d.h + 34);
+  }
+  const pad = 26;
+  const w = Math.round(maxX - minX + pad * 2), h = Math.round(maxY - minY + pad * 2);
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('viewBox', `${Math.round(minX - pad)} ${Math.round(minY - pad)} ${w} ${h}`);
+  clone.setAttribute('width', w); clone.setAttribute('height', h);
+  const world = clone.querySelector('#world');
+  if (world) world.removeAttribute('transform');
+  clone.querySelectorAll('.whit, .term-hit, .csel, .hlsel, .flow, .ghostWire').forEach(n => n.remove());
+  const st = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  st.textContent = 'text{font-family:-apple-system,system-ui,sans-serif}' +
+    '.term{stroke:#fff;stroke-width:1.6}' +
+    `.tlbl{font-size:8.5px;fill:${S.view === 'multifilar' ? '#7d8794' : '#5c6879'};font-weight:700}` +
+    '.wsel{display:none}';
+  clone.insertBefore(st, clone.firstChild);
+  return new XMLSerializer().serializeToString(clone);
+}
+function capturarPNG() {
+  const xml = svgCapturaXML();
+  if (!xml) { toast('No hay nada que capturar'); return; }
+  closeModal();
+  const img = new Image();
+  img.onload = () => {
+    const esc2 = 2;
+    const cv2 = document.createElement('canvas');
+    cv2.width = img.width * esc2; cv2.height = img.height * esc2;
+    const ctx = cv2.getContext('2d');
+    ctx.fillStyle = S.view === 'multifilar' ? '#fdfdfb' : '#e8ebef';
+    ctx.fillRect(0, 0, cv2.width, cv2.height);
+    ctx.drawImage(img, 0, 0, cv2.width, cv2.height);
+    cv2.toBlob(b => {
+      if (b) descargarBlob(b, 'montaje-rebt.png');
+      else descargarBlob(new Blob([xml], { type: 'image/svg+xml' }), 'montaje-rebt.svg');
+    }, 'image/png');
+  };
+  img.onerror = () => descargarBlob(new Blob([xml], { type: 'image/svg+xml' }), 'montaje-rebt.svg');
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+}
+
+/* ==================================================================
    MENÚ Y MODALES
    ================================================================== */
 function menuModal() {
@@ -216,6 +304,13 @@ function montajesModal() {
   if (store.volatil()) h += `<div class="help"><p style="color:#f4b942">Aviso: el almacenamiento del navegador no está disponible; los montajes solo se conservarán mientras la app esté abierta.</p></div>`;
   h += `<input class="nameIn" id="saveName" placeholder="Nombre del montaje" maxlength="40" value="">
     <button class="bigbtn grn" data-m="guardar">Guardar el montaje actual</button>
+    <div style="height:8px"></div>
+    <div class="shBtns">
+      <button class="bigbtn sec" data-m="exportar">Exportar</button>
+      <button class="bigbtn sec" data-m="importar">Importar</button>
+      <button class="bigbtn sec" data-m="capturar">Foto PNG</button>
+    </div>
+    <div class="help"><p style="font-size:12px">Exportar crea un archivo <b>.json</b> para compartir el montaje con otro dispositivo; la foto PNG sirve para entregar o consultar el esquema.</p></div>
     <div style="height:10px"></div>`;
   if (!nombres.length) h += `<div class="help"><p>No hay montajes guardados todavía.</p></div>`;
   for (const n of nombres) {
@@ -278,6 +373,9 @@ modalBody.addEventListener('click', e => {
   else if (m === 'lab') toggleLab(!S.lab);
   else if (m === 'rehacer') { redo(); closeModal(); }
   else if (m === 'medir') { setMedir(true); closeModal(); }
+  else if (m === 'exportar') exportarMontaje();
+  else if (m === 'importar') importarMontaje();
+  else if (m === 'capturar') capturarPNG();
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
   else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }

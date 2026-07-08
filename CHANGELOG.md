@@ -6,6 +6,14 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 11: compartir montajes y captura de imagen
+- En **Mis montajes**: **Exportar** (archivo `.json`, con la hoja de
+  compartir nativa del móvil cuando existe), **Importar** (carga un archivo
+  exportado en otro dispositivo, con deshacer) y **Foto PNG** (imagen del
+  montaje completo a doble resolución, recortada al contenido, ideal para
+  entregar o repasar esquemas).
+- Caché SW `rebt-v17`.
+
 ### Añadido — Fase 10: averías generadas al azar
 - En el **Modo Avería**, tres botones nuevos generan una avería aleatoria de
   **nivel 1 (fácil), 2 (media) o 3 (difícil, en modo Instalador)**: se elige

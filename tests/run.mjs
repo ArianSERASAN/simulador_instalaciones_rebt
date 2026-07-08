@@ -935,6 +935,21 @@ const TESTS = [
     return v === true ? null : 'tras sustituir el fusible debería validar, dice: ' + v;
   })],
 
+  /* ---------- Fase 11: captura y compartir ---------- */
+
+  ['la captura SVG contiene el montaje recortado', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    montarVivienda();
+    update();
+    const xml = svgCapturaXML();
+    if (!xml || !xml.startsWith('<svg')) return 'debería generarse un SVG';
+    if (!xml.includes('viewBox')) return 'el SVG debe llevar viewBox recortado';
+    if (xml.includes('term-hit') || xml.includes('class="whit"')) return 'las zonas táctiles no deben exportarse';
+    if (xml.length < 4000) return 'el SVG parece vacío: ' + xml.length + ' bytes';
+    __t.reset(); update();
+    return svgCapturaXML() === null ? null : 'sin componentes no hay nada que capturar';
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();
