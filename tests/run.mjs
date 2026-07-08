@@ -697,13 +697,27 @@ const TESTS = [
 
   /* ---------- Fase 7: examen y proyecto ---------- */
 
-  ['examen: el banco de preguntas es consistente', async page => page.evaluate(() => {
-    if (EXAM_QS.length < 40) return 'el banco debería tener al menos 40 preguntas, hay ' + EXAM_QS.length;
+  ['examen: el banco de preguntas es consistente y con bloques', async page => page.evaluate(() => {
+    if (EXAM_QS.length < 100) return 'el banco debería tener al menos 100 preguntas, hay ' + EXAM_QS.length;
     for (const q of EXAM_QS) {
       if (!q.q || !q.itc || !q.exp) return 'pregunta incompleta: ' + q.q;
       if (!Array.isArray(q.ops) || q.ops.length !== 4) return 'cada pregunta lleva 4 opciones: ' + q.q;
       if (!(q.ok >= 0 && q.ok <= 3)) return 'índice de respuesta inválido: ' + q.q;
     }
+    const bloques = bloquesExamen();
+    if (bloques.size < 4) return 'debería haber al menos 4 bloques, hay ' + bloques.size;
+    for (const [b, idxs] of bloques) {
+      if (idxs.length < 6) return `el bloque «${b}» debería tener al menos 6 preguntas, tiene ${idxs.length}`;
+    }
+    return null;
+  })],
+
+  ['panel de progreso: se abre con los contadores', async page => page.evaluate(() => {
+    progresoModal();
+    const html = document.getElementById('modalBody').innerHTML;
+    closeModal();
+    if (!html.includes('Tu progreso')) return 'debería abrirse el panel';
+    if (!html.includes('Retos guiados') || !html.includes('Averías')) return 'faltan secciones del progreso';
     return null;
   })],
 

@@ -6,6 +6,17 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 13: panel de progreso y banco de examen ampliado
+- **«Tu progreso»** en el menú: retos, averías fijas, averías generadas por
+  nivel y estadísticas de examen (intentos, mejor nota, falladas pendientes)
+  con barras de avance.
+- Banco del examen ampliado de 46 a **102 preguntas**, organizadas en
+  **5 bloques del temario** (fundamentos de electrotecnia, instalación
+  interior, protecciones y tierra, enlace/previsión/normativa, especiales y
+  receptores): además del examen general de 10 al azar, ahora se puede
+  practicar **por bloques**.
+- Caché SW `rebt-v19`.
+
 ### Añadido — Fase 12: volúmenes de baño (ITC-BT-27)
 - Componente **Zona de baño** (pestaña Receptores): dibuja la bañera con sus
   volúmenes **V0/V1, V2 y V3** en franjas punteadas. Al arrastrar mecanismos

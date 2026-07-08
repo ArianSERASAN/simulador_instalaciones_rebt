@@ -51,8 +51,94 @@ const EXAM_QS = [
   { q: 'El contador mide…', ops: ['La potencia contratada', 'La energía consumida (kWh)', 'La corriente de fuga', 'La resistencia de tierra'], ok: 1, itc: 'ITC-BT-16', exp: 'Energía en kWh; va precintado por la compañía.' },
   { q: 'La acometida es…', ops: ['El tramo del cuadro a los enchufes', 'El tramo de la red de distribución hasta la CGP, responsabilidad de la empresa distribuidora', 'La toma de tierra', 'El hilo de mando'], ok: 1, itc: 'ITC-BT-11', exp: 'Une la red de la compañía con la caja general de protección.' },
   { q: '¿Dónde puede instalarse una toma de corriente normal en un cuarto de baño?', ops: ['En cualquier sitio si tiene tierra', 'En el volumen 1, junto a la bañera', 'En el volumen 3, protegida por diferencial de 30 mA', 'Está prohibida en todo el baño'], ok: 2, itc: 'ITC-BT-27', exp: 'En los volúmenes 0, 1 y 2 no se admiten tomas normales; en el volumen 3 sí, con diferencial de 30 mA (o MBTS / transformador separador).' },
-  { q: 'La franja del volumen 2 alrededor de la bañera se extiende…', ops: ['0,20 m', '0,60 m desde el volumen 1', '1,50 m', '3 m'], ok: 1, itc: 'ITC-BT-27', exp: 'El volumen 2 llega hasta 0,60 m del borde del volumen 1; el volumen 3 se extiende 2,40 m más.' }
+  { q: 'La franja del volumen 2 alrededor de la bañera se extiende…', ops: ['0,20 m', '0,60 m desde el volumen 1', '1,50 m', '3 m'], ok: 1, itc: 'ITC-BT-27', exp: 'El volumen 2 llega hasta 0,60 m del borde del volumen 1; el volumen 3 se extiende 2,40 m más.' },
+
+  /* ---- fundamentos de electrotecnia ---- */
+  { q: '¿Qué intensidad consume un aparato de 2.300 W a 230 V?', ops: ['1 A', '10 A', '23 A', '100 A'], ok: 1, itc: 'Fundamentos', exp: 'I = P / V = 2300 / 230 = 10 A.' },
+  { q: 'Con la ley de Ohm: ¿qué corriente circula por 48 Ω a 12 V?', ops: ['0,25 A', '4 A', '0,4 A', '576 A'], ok: 0, itc: 'Fundamentos', exp: 'I = V / R = 12 / 48 = 0,25 A.' },
+  { q: 'Dos resistencias de 10 Ω y 20 Ω en SERIE equivalen a…', ops: ['6,7 Ω', '15 Ω', '30 Ω', '200 Ω'], ok: 2, itc: 'Fundamentos', exp: 'En serie se suman: 10 + 20 = 30 Ω.' },
+  { q: 'Dos resistencias iguales de 10 Ω en PARALELO equivalen a…', ops: ['20 Ω', '10 Ω', '5 Ω', '1 Ω'], ok: 2, itc: 'Fundamentos', exp: 'En paralelo, dos iguales dan la mitad: 5 Ω.' },
+  { q: '¿Cuánta potencia admite como máximo un circuito con PIA de 16 A a 230 V?', ops: ['1.610 W', '2.300 W', '3.680 W', '5.750 W'], ok: 2, itc: 'Fundamentos', exp: 'P = V · I = 230 · 16 = 3.680 W.' },
+  { q: 'Un radiador de 2 kW funcionando 3 horas consume…', ops: ['0,66 kWh', '2 kWh', '5 kWh', '6 kWh'], ok: 3, itc: 'Fundamentos', exp: 'Energía = P · t = 2 kW · 3 h = 6 kWh: eso es lo que factura el contador.' },
+  { q: 'La frecuencia de la red eléctrica en España es…', ops: ['25 Hz', '50 Hz', '60 Hz', '100 Hz'], ok: 1, itc: 'REBT', exp: 'Corriente alterna senoidal de 50 Hz.' },
+  { q: 'El calentamiento de un conductor al paso de la corriente se llama…', ops: ['Efecto Joule', 'Efecto Hall', 'Inducción', 'Histéresis'], ok: 0, itc: 'Fundamentos', exp: 'P = I²·R: la resistencia del conductor disipa calor. Por eso importan las secciones.' },
+  { q: 'El amperímetro se conecta… y el voltímetro se conecta…', ops: ['Ambos en serie', 'En serie · en paralelo', 'En paralelo · en serie', 'Ambos en paralelo'], ok: 1, itc: 'Fundamentos', exp: 'La corriente se mide atravesando el aparato (serie); la tensión, comparando dos puntos (paralelo).' },
+  { q: 'El cos φ (factor de potencia) relaciona…', ops: ['Tensión y corriente máximas', 'Potencia activa y potencia aparente', 'Energía y tiempo', 'Resistencia e impedancia'], ok: 1, itc: 'Fundamentos', exp: 'cos φ = P/S. Con cargas inductivas (motores) parte de la corriente no produce trabajo útil.' },
+  { q: 'La potencia de un motor trifásico de 400 V que absorbe 10 A con cos φ = 0,9 es ≈…', ops: ['3,6 kW', '4 kW', '6,2 kW', '9 kW'], ok: 2, itc: 'Fundamentos', exp: 'P = √3 · 400 · 10 · 0,9 ≈ 6.235 W.' },
+  { q: '¿Qué material es mejor conductor?', ops: ['PVC', 'Cobre', 'Madera seca', 'Cerámica'], ok: 1, itc: 'Fundamentos', exp: 'El cobre es el conductor habitual en BT; el PVC/XLPE hace de aislante.' },
+  { q: 'La red de distribución doméstica suministra corriente…', ops: ['Continua', 'Alterna senoidal', 'Pulsada', 'Trifásica continua'], ok: 1, itc: 'REBT', exp: 'Alterna de 50 Hz; la continua aparece tras rectificadores (cargadores, electrónica).' },
+
+  /* ---- protecciones y tierra ---- */
+  { q: 'La curva típica de los PIA de vivienda es la…', ops: ['Curva B', 'Curva C', 'Curva D', 'Curva K'], ok: 1, itc: 'ITC-BT-22', exp: 'La curva C (magnético entre 5 y 10 · In) cubre los picos de arranque domésticos.' },
+  { q: 'Que dispare primero la protección más CERCANA al defecto se llama…', ops: ['Redundancia', 'Selectividad', 'Discriminación térmica', 'Amperimetría'], ok: 1, itc: 'ITC-BT-22', exp: 'Así el fallo de un circuito no deja sin servicio el resto: PIA antes que IGA, IGA antes que fusibles.' },
+  { q: 'Un contacto INDIRECTO es…', ops: ['Tocar una fase directamente', 'Tocar una masa metálica accidentalmente en tensión por un fallo', 'Tocar el neutro', 'Un cortocircuito'], ok: 1, itc: 'ITC-BT-24', exp: 'Contra ellos protegen el diferencial y la puesta a tierra actuando juntos.' },
+  { q: 'La protección contra sobretensiones (rayos, maniobras de red) la trata…', ops: ['ITC-BT-22', 'ITC-BT-23', 'ITC-BT-25', 'ITC-BT-27'], ok: 1, itc: 'ITC-BT-23', exp: 'Sobreintensidades: BT-22 · SOBRETENSIONES: BT-23 (protectores tipo 1/2/3).' },
+  { q: 'Antes de rearmar un PIA que ha disparado conviene…', ops: ['Rearmarlo varias veces seguidas', 'Localizar y corregir la causa del disparo', 'Puentearlo', 'Sustituirlo por uno mayor'], ok: 1, itc: 'ITC-BT-22', exp: 'El disparo es un síntoma: rearmar sin investigar repite el fallo o lo esconde.' },
+  { q: 'El corte del IGA debe ser…', ops: ['Solo de la fase', 'Solo del neutro', 'Omnipolar (fase y neutro a la vez)', 'Solo de la tierra'], ok: 2, itc: 'ITC-BT-17', exp: 'Los dispositivos generales cortan todos los conductores activos simultáneamente.' },
+  { q: 'Un diferencial de tipo A, frente a uno de tipo AC, detecta además…', ops: ['Corrientes de fuga con componente continua pulsante', 'Sobrecargas', 'Cortocircuitos', 'Sobretensiones'], ok: 0, itc: 'ITC-BT-24', exp: 'Los equipos electrónicos pueden fugar corrientes pulsantes que el tipo AC no ve.' },
+  { q: 'En un fusible, la marca «gG» indica…', ops: ['Uso general (protege sobrecarga y cortocircuito)', 'Solo motores', 'Acción ultrarrápida', 'Alta tensión'], ok: 0, itc: 'ITC-BT-22', exp: 'gG: uso general. aM: acompañamiento de motores (solo cortocircuitos).' },
+  { q: 'En locales húmedos, la tensión de contacto límite convencional es…', ops: ['12 V', '24 V', '50 V', '230 V'], ok: 1, itc: 'ITC-BT-18 · ITC-BT-24', exp: '24 V en locales húmedos o mojados; 50 V en secos. De ahí se dimensiona la resistencia de tierra.' },
+  { q: 'Para una fase de 16 mm², el conductor de protección debe ser de…', ops: ['2,5 mm²', 'La mitad', '16 mm² (igual que la fase)', 'El doble'], ok: 2, itc: 'ITC-BT-18', exp: 'Hasta 16 mm², el PE es de la misma sección que la fase (después: 16, y a partir de 35, la mitad).' },
+  { q: 'Al borne principal de tierra se conectan…', ops: ['Solo la pica', 'Los conductores de protección, la línea de enlace con el electrodo y las masas', 'Fase y neutro', 'Solo el pararrayos'], ok: 1, itc: 'ITC-BT-18 · ITC-BT-26', exp: 'Es el punto de reunión de toda la red de tierra del edificio.' },
+  { q: 'Un aparato de CLASE II se caracteriza por…', ops: ['Llevar doble aislamiento y no necesitar tierra', 'Funcionar a 12 V', 'Llevar fusible interno', 'Ser trifásico'], ok: 0, itc: 'ITC-BT-24', exp: 'El símbolo del doble cuadrado: aislamiento reforzado en lugar de conexión a tierra.' },
+  { q: 'En la designación IP, el segundo dígito (IPX4, IPX5…) indica protección contra…', ops: ['Polvo', 'Agua', 'Impactos', 'Corrosión'], ok: 1, itc: 'ITC-BT-27', exp: 'Primer dígito: sólidos/polvo; segundo: agua (4 = salpicaduras, 5 = chorros).' },
+  { q: 'La MBTS admitida en los volúmenes 0 y 1 del baño es de…', ops: ['12 V', '24 V', '50 V', '110 V'], ok: 0, itc: 'ITC-BT-27 · ITC-BT-36', exp: 'Muy baja tensión de seguridad de 12 V en esos volúmenes (fuente fuera de los volúmenes 0 y 1).' },
+
+  /* ---- instalación interior ---- */
+  { q: '¿Cuántos circuitos mínimos tiene una vivienda con electrificación básica?', ops: ['3', '5 (C1 a C5)', '7', '12'], ok: 1, itc: 'ITC-BT-25', exp: 'C1 alumbrado, C2 tomas generales, C3 cocina/horno, C4 lavadora-lavavajillas-termo, C5 baño y auxiliares.' },
+  { q: 'La electrificación elevada añade circuitos como…', ops: ['C6 a C12 (más alumbrado, más tomas, calefacción, AC, secadora…)', 'Solo un C6 de emergencia', 'Circuitos trifásicos obligatorios', 'Ninguno: solo sube el IGA'], ok: 0, itc: 'ITC-BT-25', exp: 'C6 alumbrado adicional, C7 tomas adicionales, C8 calefacción, C9 aire acondicionado, C10 secadora, C11 automatización…' },
+  { q: 'El circuito C8 de la electrificación elevada corresponde a…', ops: ['Secadora', 'Calefacción eléctrica', 'Automatización', 'Aire acondicionado'], ok: 1, itc: 'ITC-BT-25', exp: 'C8 calefacción · C9 aire acondicionado · C10 secadora · C11 automatización.' },
+  { q: 'Como criterio de la ITC-BT-25, las tomas de uso general (C2) se prevén a razón de…', ops: ['Una por estancia como máximo', 'Una cada 6 m² (redondeado al alza)', 'Una cada 20 m²', 'Sin criterio'], ok: 1, itc: 'ITC-BT-25', exp: 'Puntos de utilización mínimos: en C2, uno por cada 6 m² de superficie útil.' },
+  { q: 'El tubo protector del circuito C1 (1,5 mm²) es de…', ops: ['12 mm', '16 mm', '25 mm', '32 mm'], ok: 1, itc: 'ITC-BT-25 · ITC-BT-21', exp: 'C1: tubo de 16 mm · C2/C4/C5: 20 mm · C3: 25 mm.' },
+  { q: 'La sección mínima de los conductores de alumbrado en vivienda es…', ops: ['0,75 mm²', '1 mm²', '1,5 mm²', '2,5 mm²'], ok: 2, itc: 'ITC-BT-25', exp: '1,5 mm² con PIA de 10 A (C1).' },
+  { q: 'En una instalación monofásica, la sección del neutro es…', ops: ['La mitad de la fase', 'Igual que la de la fase', 'El doble', 'Libre'], ok: 1, itc: 'ITC-BT-19', exp: 'En monofásico el neutro lleva la misma corriente que la fase: misma sección.' },
+  { q: 'Los conductores de una vivienda discurren normalmente…', ops: ['Grapados en superficie sin más', 'Bajo tubo protector (empotrado o en superficie)', 'Enterrados', 'Al aire'], ok: 1, itc: 'ITC-BT-20 · ITC-BT-21', exp: 'Canalizados bajo tubo: protege el cable y permite sustituirlo.' },
+  { q: 'Unir conductores retorciéndolos y encintándolos, sin caja ni borne, es…', ops: ['Aceptable si queda firme', 'No reglamentario: los empalmes van en cajas con bornes o conectores', 'Obligatorio', 'Solo válido en tierra'], ok: 1, itc: 'ITC-BT-19', exp: 'Las conexiones se hacen en cajas de registro con bornes/conectores adecuados.' },
+
+  /* ---- enlace y previsión ---- */
+  { q: 'Según la tabla de simultaneidad, 2 viviendas cuentan como…', ops: ['1', '2', '1,5', '3'], ok: 1, itc: 'ITC-BT-10', exp: 'Coeficientes: 1→1, 2→2, 3→3, 4→3,8… (a partir de 4 ya no crece linealmente).' },
+  { q: 'La previsión de un local comercial es de 100 W/m² con un mínimo por local de…', ops: ['1.000 W', '2.300 W', '3.450 W', '5.750 W'], ok: 2, itc: 'ITC-BT-10', exp: '100 W/m² y como mínimo 3.450 W a 230 V por local.' },
+  { q: 'La previsión de un garaje con ventilación FORZADA es de…', ops: ['5 W/m²', '10 W/m²', '20 W/m²', '100 W/m²'], ok: 2, itc: 'ITC-BT-10', exp: '10 W/m² con ventilación natural, 20 W/m² con forzada (mínimo 3.450 W).' },
+  { q: 'La acometida puede ser…', ops: ['Solo aérea', 'Solo subterránea', 'Aérea, subterránea o mixta', 'Interior'], ok: 2, itc: 'ITC-BT-11', exp: 'Según la red de distribución de la zona; la decide la empresa distribuidora.' },
+  { q: 'La CGP se instala…', ops: ['Dentro de la vivienda', 'En fachada o límite de la propiedad, accesible desde la vía pública', 'En el cuarto de baño', 'Junto al contador de agua'], ok: 1, itc: 'ITC-BT-13', exp: 'En la frontera entre la red y la instalación, accesible para la empresa.' },
+  { q: 'La LGA discurre siempre por…', ops: ['El interior de una vivienda', 'Zonas de uso común del edificio', 'La vía pública', 'El garaje de un vecino'], ok: 1, itc: 'ITC-BT-14', exp: 'De la CGP a la centralización por zonas comunes, registrable y sin pasar por propiedad privada de un usuario.' },
+  { q: 'Una derivación individual NO puede…', ops: ['Superar 6 mm²', 'Atravesar la propiedad de otro usuario', 'Llevar conductor de protección', 'Ir bajo tubo'], ok: 1, itc: 'ITC-BT-15', exp: 'Cada DI pertenece a su usuario y discurre por zonas comunes: nunca por la vivienda de otro.' },
+  { q: 'El hilo de mando de la derivación individual (rojo) sirve para…', ops: ['La tierra', 'Aplicar la discriminación horaria (cambio de tarifa)', 'El timbre', 'El portero'], ok: 1, itc: 'ITC-BT-15', exp: 'Es un conductor de 1,5 mm² para señales de tarifa; hoy casi en desuso con los contadores inteligentes.' },
+  { q: 'El REBT vigente se aprobó por…', ops: ['RD 842/2002', 'Ley 54/1997', 'RD 1955/2000', 'Orden de 1973'], ok: 0, itc: 'REBT', exp: 'Real Decreto 842/2002, con sus ITC-BT-01 a 52 (y actualizaciones posteriores).' },
+  { q: 'El boletín (certificado de instalación eléctrica) lo emite…', ops: ['El propietario', 'La empresa distribuidora', 'El instalador autorizado / empresa instaladora habilitada', 'El ayuntamiento'], ok: 2, itc: 'ITC-BT-04', exp: 'La empresa instaladora habilitada certifica que la instalación cumple el REBT.' },
+  { q: 'Antes de la puesta en servicio, en toda instalación se verifica…', ops: ['Solo que enciendan las luces', 'Aislamiento, continuidad de la tierra y funcionamiento de las protecciones', 'El color de los mecanismos', 'Nada, si es nueva'], ok: 1, itc: 'ITC-BT-05', exp: 'Medidas de aislamiento, resistencia de tierra, disparo de diferenciales… según la ITC-BT-05.' },
+
+  /* ---- maniobras y receptores ---- */
+  { q: '¿Cuántos bornes tiene un conmutador simple?', ops: ['2', '3 (común, L1 y L2)', '4', '6'], ok: 1, itc: 'ITC-BT-19', exp: 'El común conecta alternativamente con L1 o L2: por eso permite mandar desde dos puntos.' },
+  { q: '¿Cuántos bornes de contacto tiene un cruzamiento?', ops: ['2', '3', '4', '5'], ok: 2, itc: 'ITC-BT-19', exp: 'Dos arriba y dos abajo: deja pasar los hilos rectos o cruzados.' },
+  { q: 'Los bornes A1 y A2 de un telerruptor o contactor corresponden a…', ops: ['El contacto de potencia', 'La bobina', 'La tierra', 'El neutro de red'], ok: 1, itc: 'ITC-BT-19', exp: 'A1-A2 es la bobina de mando; el contacto de potencia va numerado aparte (1-2…).' },
+  { q: 'El minutero de escalera…', ops: ['Enciende al detectar movimiento', 'Mantiene la luz un tiempo tras cada pulsación y apaga solo', 'Solo funciona de noche', 'Es un diferencial'], ok: 1, itc: 'ITC-BT-19', exp: 'Un impulso de cualquier pulsador cierra su contacto durante el tiempo ajustado.' },
+  { q: 'El interruptor crepuscular cierra su contacto…', ops: ['Al detectar presencia', 'Al oscurecer (por nivel de luz)', 'A una hora fija', 'Con el timbre'], ok: 1, itc: 'ITC-BT-09', exp: 'Fotocélula típica de alumbrado exterior; el programador horario, en cambio, va por reloj.' },
+  { q: 'En el arranque, un motor absorbe…', ops: ['Menos corriente que en marcha', 'La misma', 'Varias veces su corriente nominal', 'Corriente continua'], ok: 2, itc: 'ITC-BT-47', exp: 'El pico de arranque puede ser 5–7 veces la nominal: la ITC-BT-47 limita la relación arranque/plena carga.' },
+  { q: 'Para invertir el giro de un motor trifásico se…', ops: ['Sube la tensión', 'Intercambian dos fases cualesquiera', 'Cambia el neutro', 'Añade un condensador'], ok: 1, itc: 'ITC-BT-47', exp: 'Intercambiar dos fases invierte el sentido del campo giratorio.' },
+  { q: 'Un zumbido con el motor trifásico parado suele indicar…', ops: ['Exceso de engrase', 'Que le falta una fase', 'Tensión alta', 'Que gira al revés'], ok: 1, itc: 'ITC-BT-47', exp: 'A dos fases no hay campo giratorio: el motor zumba, no arranca y se quema si no se corta.' },
+  { q: 'El telerruptor es preferible a la conmutación con cruzamientos cuando…', ops: ['Hay 2 puntos de mando', 'Hay muchos puntos de mando (pulsadores en paralelo)', 'No hay neutro', 'Se quiere regular intensidad'], ok: 1, itc: 'ITC-BT-19', exp: 'Con muchos puntos, un pulsador más solo añade un cable a la bobina; con cruzamientos el cableado crece mucho.' },
+  { q: 'Al añadir un tercer punto de mando a una conmutada existente se intercala…', ops: ['Otro interruptor simple', 'Un cruzamiento entre los dos conmutadores', 'Un diferencial', 'Un contactor'], ok: 1, itc: 'ITC-BT-19', exp: 'Conmutador → cruzamiento(s) → conmutador: cada punto extra es un cruzamiento más.' }
 ];
+
+/* bloque temático de una pregunta (para exámenes por bloques) */
+function bloqueDe(q) {
+  const t = q.itc || '';
+  if (/BT-27|BT-47|BT-36|BT-09/.test(t)) return 'Especiales y receptores';
+  if (/BT-0[45]|BT-1[0-6]|art\. 4|RD 842|REBT/.test(t)) return 'Enlace, previsión y normativa';
+  if (/BT-1[78]|BT-2[234]/.test(t)) return 'Protecciones y tierra';
+  if (/BT-19|BT-2[0156]/.test(t)) return 'Instalación interior';
+  return 'Fundamentos';
+}
+function bloquesExamen() {
+  const m = new Map();
+  EXAM_QS.forEach((q, i) => {
+    const b = bloqueDe(q);
+    if (!m.has(b)) m.set(b, []);
+    m.get(b).push(i);
+  });
+  return m;
+}
 
 /* ---------- estado y estadísticas del examen ---------- */
 let EXAM = null;
@@ -66,11 +152,14 @@ function saveExamStats(st) { store.set('rebt.exam', JSON.stringify(st)); }
 
 function examenModal() {
   const st = examStats();
+  const bloques = [...bloquesExamen().entries()];
   openModal(`<div class="mTitle">Examen tipo test · IBTB</div>
     <div class="help"><p>Banco de <b>${EXAM_QS.length} preguntas</b> con su ITC. Cada examen son <b>10 al azar</b>; al responder verás la corrección razonada.
     ${st.intentos ? `<br>Exámenes hechos: <b>${st.intentos}</b> · mejor nota: <b>${st.record}/10</b>.` : ''}</p></div>
-    <button class="bigbtn pri" data-m="examStart">Empezar examen</button>
-    ${st.falladas.length ? `<div style="height:8px"></div><button class="bigbtn sec" data-m="examRepaso">Repasar ${st.falladas.length} pregunta${st.falladas.length > 1 ? 's' : ''} fallada${st.falladas.length > 1 ? 's' : ''}</button>` : ''}`);
+    <button class="bigbtn pri" data-m="examStart">Examen general (10 al azar)</button>
+    ${st.falladas.length ? `<div style="height:8px"></div><button class="bigbtn sec" data-m="examRepaso">Repasar ${st.falladas.length} pregunta${st.falladas.length > 1 ? 's' : ''} fallada${st.falladas.length > 1 ? 's' : ''}</button>` : ''}
+    <div class="help"><p style="margin-top:10px"><b>O practica por bloques del temario:</b></p></div>` +
+    bloques.map(([b, idxs]) => `<button class="mItem" data-m="examBloque" data-id="${esc(b)}"><div>${esc(b)}<small>${idxs.length} preguntas en el banco</small></div></button>`).join(''));
 }
 
 function examBarajar(pool, n) {
@@ -171,13 +260,34 @@ function proyectoCalcular() {
   </div>`;
 }
 
+/* ---------- panel «Tu progreso» ---------- */
+function progresoModal() {
+  const rd = retosDone(), ad = averiasDone(), ag = averiasGenDone(), ex = examStats();
+  const okR = RETOS.filter(r => rd[r.id]).length;
+  const okA = AVERIAS.filter(a => ad[a.id]).length;
+  const gen = (ag[1] || 0) + (ag[2] || 0) + (ag[3] || 0);
+  const bar = (ok, tot) => `<div class="pbar"><div style="width:${tot ? Math.round(ok / tot * 100) : 0}%"></div></div>`;
+  const linea = (t, ok, tot, extra) => `<div class="pline"><div class="plt"><span>${t}</span><b>${ok}${tot != null ? ' / ' + tot : ''}</b></div>${tot != null ? bar(ok, tot) : ''}${extra ? `<small>${extra}</small>` : ''}</div>`;
+  openModal(`<div class="mTitle">Tu progreso</div>
+    ${linea('Retos guiados', okR, RETOS.length)}
+    ${linea('Averías fijas', okA, AVERIAS.length)}
+    ${linea('Averías generadas resueltas', gen, null, `nivel 1: ${ag[1] || 0} · nivel 2: ${ag[2] || 0} · nivel 3: ${ag[3] || 0}`)}
+    ${linea('Exámenes hechos', ex.intentos, null, `mejor nota: ${ex.record}/10 · falladas pendientes: ${ex.falladas.length}`)}
+    <div style="height:10px"></div>
+    <button class="bigbtn pri" data-m="retos">Ir a los retos</button>
+    <div style="height:8px"></div>
+    <button class="bigbtn sec" data-m="examen">Ir al examen</button>`);
+}
+
 /* ---------- ganchos de los modales ---------- */
 modalBody.addEventListener('click', e => {
   const b = e.target.closest('[data-m]');
   if (!b) return;
   const m = b.dataset.m;
   if (m === 'examen') examenModal();
+  else if (m === 'progreso') progresoModal();
   else if (m === 'examStart') startExamen(examBarajar(EXAM_QS.map((q, i) => i), 10));
+  else if (m === 'examBloque') { const mb = bloquesExamen().get(b.dataset.id); if (mb && mb.length) startExamen(examBarajar(mb, Math.min(10, mb.length))); }
   else if (m === 'examRepaso') { const f = examStats().falladas.filter(i => EXAM_QS[i]); if (f.length) startExamen(examBarajar(f, Math.min(10, f.length))); }
   else if (m === 'examResp') examResponder(Number(b.dataset.id));
   else if (m === 'examNext') { EXAM.i++; examPregunta(); }
