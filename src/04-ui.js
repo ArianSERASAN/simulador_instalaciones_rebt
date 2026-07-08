@@ -15,8 +15,8 @@ function screenToWorld(cx, cy) {
 function renderBG() {
   const multi = S.view === 'multifilar';
   /* en montajes de edificio sin aparatos DIN, el cuadro de vivienda solo estorba */
-  const sinCuadro = !S.comps.some(c => defOf(c).din) &&
-    S.comps.some(c => ['cgp3', 'igm', 'embarrado', 'cvivienda', 'fusi'].includes(c.type));
+  const sinCuadro = S.lab || (!S.comps.some(c => defOf(c).din) &&
+    S.comps.some(c => ['cgp3', 'igm', 'embarrado', 'cvivienda', 'fusi'].includes(c.type)));
   if (multi) {
     bgG.innerHTML = `
       <rect x="-2000" y="-2000" width="4800" height="5200" fill="#fdfdfb"/>
@@ -130,9 +130,9 @@ function moveCompLive(c) {
 let saveTimer = null;
 function autosave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { try { store.set('rebt.autosave', serialize()); } catch (e) {} }, 350);
+  saveTimer = setTimeout(() => { try { store.set(S.lab ? 'rebt.lab' : 'rebt.autosave', serialize()); } catch (e) {} }, 350);
 }
-function update() { SIM = simulate(); render(); autosave(); }
+function update() { SIM = S.lab ? simulateLab() : simulate(); render(); autosave(); }
 
 function addComp(type, x, y) {
   const d = DEFS[type];
@@ -586,9 +586,10 @@ function palIcon(type) {
 }
 
 function buildPalette() {
-  $('#palTabs').innerHTML = PAL_CATS.map(c =>
+  const cats = (S.lab && typeof LAB_CATS !== 'undefined') ? LAB_CATS : PAL_CATS;
+  $('#palTabs').innerHTML = cats.map(c =>
     `<button class="ptab${S.palCat === c.id ? ' act' : ''}" data-cat="${c.id}">${esc(c.n)}</button>`).join('');
-  const cat = PAL_CATS.find(c => c.id === S.palCat) || PAL_CATS[0];
+  const cat = cats.find(c => c.id === S.palCat) || cats[0];
   $('#palette').innerHTML = cat.items.map(t => {
     const dis = DEFS[t].unico && S.comps.some(c => c.type === t);
     return `<button class="palItem${dis ? ' dis' : ''}" data-pal="${t}">${palIcon(t)}<span>${esc(DEFS[t].corto)}</span></button>`;

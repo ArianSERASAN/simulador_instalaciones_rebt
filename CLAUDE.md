@@ -31,7 +31,10 @@ src/05-engine.js    motor eléctrico: clase UF (unión-búsqueda sobre bornes)
 src/06-simulate.js  simulate() + panel de resultados (todas las reglas ITC)
 src/07-modes.js     retos, guardar/cargar, menús, modo/vista, arranque
 src/08-phase2.js    Fase 2 sobre DEFS (CGP, contador, telerruptor, avería…)
-src/09-main.js      boot final (con la Fase 2 ya registrada)
+                    + enlace completo (CPM, CGP 3~, IGM, embarrado, viviendas)
+src/10-lab.js       laboratorio de circuitos: solver real (análisis nodal),
+                    pila/resistencia/bombilla/medidores, retos rl1–rl6
+src/09-main.js      boot final (con la Fase 2 y el laboratorio ya registrados)
 sw.js               precache offline
 ```
 

@@ -108,7 +108,11 @@ function startReto(id) {
   const r = RETOS.find(r => r.id === id);
   if (!r) return;
   S.reto = id; S.averia = null;
-  if (r.modo && S.mode !== r.modo) setMode(r.modo);
+  if (r.modo === 'lab') { if (!S.lab) toggleLab(true); }
+  else {
+    if (S.lab) toggleLab(false);
+    if (r.modo && S.mode !== r.modo) setMode(r.modo);
+  }
   $('#retoBar').classList.add('on');
   $('#retoTitle').textContent = r.t;
   closeModal(); closeSheet();
@@ -185,6 +189,7 @@ function menuModal() {
   openModal(`<div class="mTitle">Menú</div>
     <button class="mItem" data-m="retos"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6" fill="none" stroke="#f4b942" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Retos guiados<small>Ejercicios paso a paso con corrección automática</small></div></button>
     <button class="mItem" data-m="averias"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z" fill="none" stroke="#e5533d" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.2" stroke="#e5533d" stroke-width="2" stroke-linecap="round"/></svg></span><div>Modo Avería<small>Te genera un montaje con un fallo oculto: encuéntralo</small></div></button>
+    <button class="mItem" data-m="lab"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M10 3v6L4.5 19a1.8 1.8 0 0 0 1.6 2.6h11.8a1.8 1.8 0 0 0 1.6-2.6L14 9V3" fill="none" stroke="#37c26e" stroke-width="2" stroke-linejoin="round"/><path d="M8 3h8M7 15h10" stroke="#37c26e" stroke-width="2" stroke-linecap="round"/></svg></span><div>${S.lab ? 'Volver al simulador REBT' : 'Laboratorio de circuitos'}<small>${S.lab ? 'Tu montaje REBT sigue guardado' : 'Pila, bombillas, serie/paralelo y medidas reales'}</small></div></button>
     <button class="mItem" data-m="montajes"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z M8 4v5h7V4 M8 20v-6h8v6" fill="none" stroke="#4d8dee" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Mis montajes<small>Guardar y cargar (funciona sin conexión)</small></div></button>
     <button class="mItem" data-m="tabla"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 10h16 M4 15h16 M10 5v14" fill="none" stroke="#37c26e" stroke-width="2"/></svg></span><div>Tabla REBT<small>Circuitos C1–C5, secciones y calibres (ITC-BT-25)</small></div></button>
     <button class="mItem" data-m="esquema"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3v5M12 8H6v4M12 8h6v4M6 16v-4M18 16v-4M12 12v9" fill="none" stroke="#c98ae5" stroke-width="2" stroke-linecap="round"/></svg></span><div>Esquema de enlace<small>Declarar 2.1 / 2.2.1 / 2.2.2 (ITC-BT-12)${S.esquema ? ' · actual: ' + S.esquema : ''}</small></div></button>
@@ -196,7 +201,7 @@ function retosModal() {
   const done = retosDone();
   openModal(`<div class="mTitle">Retos guiados</div>` + RETOS.map(r =>
     `<button class="mItem" data-m="reto" data-id="${r.id}">
-      <div>${esc(r.t)}${r.modo === 'instalador' ? '<small>Modo Instalador</small>' : ''}</div>
+      <div>${esc(r.t)}${r.modo === 'instalador' ? '<small>Modo Instalador</small>' : (r.modo === 'lab' ? '<small>Laboratorio</small>' : '')}</div>
       ${done[r.id] ? '<span class="din">✓ superado</span>' : ''}</button>`).join(''));
 }
 
@@ -265,6 +270,7 @@ modalBody.addEventListener('click', e => {
   else if (m === 'tabla') tablaModal();
   else if (m === 'esquema') esquemaModal();
   else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
+  else if (m === 'lab') toggleLab(!S.lab);
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
   else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }
@@ -292,7 +298,8 @@ modalBody.addEventListener('click', e => {
 
 function nuevoMontaje() {
   S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
-  seed(); fitCamera(); update(); buildPalette();
+  if (S.lab) seedLab(); else seed();
+  fitCamera(); update(); buildPalette();
 }
 function seed() {
   S.comps.push({ id: 'c' + (S.nextId++), type: 'red', x: 334, y: 24, props: {}, state: {} });

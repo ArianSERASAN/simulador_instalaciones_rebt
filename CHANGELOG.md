@@ -6,6 +6,25 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 5: laboratorio de circuitos básicos
+- Nuevo espacio **Laboratorio** (menú → Laboratorio de circuitos), separado
+  del simulador REBT y con su propio guardado: al entrar y salir se conserva
+  cada montaje.
+- **Motor eléctrico real** (`src/10-lab.js`): análisis nodal con fuentes en
+  equivalente Norton y eliminación gaussiana. Tensiones y corrientes reales:
+  la **serie y el paralelo funcionan de verdad**, el brillo depende de la
+  potencia y los cortocircuitos tienen corriente calculada.
+- Componentes: **pila** (4,5–24 V, con resistencia interna), **resistencia**,
+  **bombilla** (nominal 3,5/6/12 V; se funde con >60 % de exceso de
+  potencia), **fusible** (funde por corriente), **amperímetro** y
+  **voltímetro** con display en vivo; también sirven el interruptor y el
+  pulsador de siempre.
+- Panel de resultados propio con la tabla de medidas de cada aparato.
+- 6 retos didácticos nuevos (rl1–rl6): primera bombilla, paralelo, serie,
+  ley de Ohm con amperímetro, divisor de tensión y el fusible que salva el
+  circuito.
+- 7 escenarios nuevos en `tests/run.mjs` (50 en total). Caché SW `rebt-v11`.
+
 ### Añadido — Fase 4: centralizaciones en más de un lugar (esquema 2.2.2)
 - La **LGA con varias centralizaciones** se detecta completa (tronco común y
   rama a cada IGM), sin contaminarse con los tramos internos de cada

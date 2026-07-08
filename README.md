@@ -17,8 +17,10 @@ src/
   05-engine.js        motor eléctrico (clase UF, unión-búsqueda)
   06-simulate.js      simulate() + panel de resultados (reglas ITC)
   07-modes.js         retos, guardar/cargar, menús, modo/vista, arranque
-  08-phase2.js        Fase 2 registrada sobre DEFS (CGP, telerruptor…)
-  09-main.js          boot final (con la Fase 2 ya registrada)
+  08-phase2.js        Fase 2 registrada sobre DEFS (CGP, telerruptor…) +
+                      enlace ITC-BT-12 (CPM, CGP 3~, IGM, embarrado, viviendas)
+  10-lab.js           laboratorio de circuitos (solver por análisis nodal)
+  09-main.js          boot final (se carga el último)
 sw.js                 precache offline (subir el nº de versión al publicar)
 manifest.webmanifest, icon.svg, apple-touch-icon.png
 ```

@@ -1133,6 +1133,7 @@ function startAveria(id) {
   let a = AVERIAS.find(x => x.id === id);
   if (id === 'azar') a = AVERIAS[Math.floor(Math.random() * AVERIAS.length)];
   if (!a) return;
+  if (S.lab) toggleLab(false);
   S.reto = null;
   S.averia = a.id;
   if (a.modo && S.mode !== a.modo) setMode(a.modo);

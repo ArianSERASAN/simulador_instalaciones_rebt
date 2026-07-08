@@ -43,6 +43,7 @@ const PAGE_HELPERS = `
     reset() {
       S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null;
       S.reto = null; S.averia = null; S.noche = false; S.mode = 'aprendiz';
+      S.lab = false; S.esquema = null;
     },
     msgs(lvl) { return SIM.msgs.filter(m => !lvl || m.lvl === lvl).map(m => m.txt); },
     hasMsg(lvl, frag) { return SIM.msgs.some(m => m.lvl === lvl && m.txt.includes(frag)); }
@@ -553,6 +554,128 @@ const TESTS = [
     update();
     return esquemaDetectado() === '2.1' && S.esquema !== esquemaDetectado()
       ? null : 'con CPM el esquema detectado debe ser 2.1 y no casar con 2.2.1';
+  })],
+
+  /* ---------- Fase 5: laboratorio (solver real) ---------- */
+
+  ['lab · ley de Ohm: 9 V sobre 100 Ω ≈ 90 mA en el amperímetro', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 9 });
+    const amp = mkComp('amperimetro', 250, 100);
+    const res = mkComp('resistencia', 400, 100, { r: 100 });
+    mkWire(pila, 'p', amp, 'a', 'negro'); mkWire(amp, 'b', res, 'a', 'negro');
+    mkWire(res, 'b', pila, 'm', 'negro');
+    update();
+    const i = Math.abs(SIM.amp[amp.id] || 0);
+    return (i > 0.085 && i < 0.094) ? null : 'esperaba ~0,09 A, hay ' + i;
+  })],
+
+  ['lab · serie vs paralelo: el brillo cambia de verdad', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    // dos bombillas 12 V / 5 W en PARALELO con pila de 9 V
+    let pila = mkComp('pila', 100, 100, { v: 9 });
+    let b1 = mkComp('bombilla', 260, 100, { vn: 12, wn: 5 });
+    let b2 = mkComp('bombilla', 400, 100, { vn: 12, wn: 5 });
+    mkWire(pila, 'p', b1, 'a', 'negro'); mkWire(pila, 'p', b2, 'a', 'negro');
+    mkWire(b1, 'b', pila, 'm', 'negro'); mkWire(b2, 'b', pila, 'm', 'negro');
+    update();
+    const bp1 = SIM.bulb[b1.id], bp2 = SIM.bulb[b2.id];
+    if (!bp1 || !bp2 || bp1.b < 0.4 || bp2.b < 0.4) return 'en paralelo deberían brillar > 40 %';
+    // las mismas en SERIE: mucho menos brillo
+    __t.reset(); S.lab = true;
+    pila = mkComp('pila', 100, 100, { v: 9 });
+    b1 = mkComp('bombilla', 260, 100, { vn: 12, wn: 5 });
+    b2 = mkComp('bombilla', 400, 100, { vn: 12, wn: 5 });
+    mkWire(pila, 'p', b1, 'a', 'negro'); mkWire(b1, 'b', b2, 'a', 'negro');
+    mkWire(b2, 'b', pila, 'm', 'negro');
+    update();
+    const bs1 = SIM.bulb[b1.id], bs2 = SIM.bulb[b2.id];
+    if (!bs1 || !bs2 || bs1.b > 0.2 || bs2.b > 0.2) return 'en serie deberían brillar < 20 %';
+    if (!SIM.lit[b1.id] || !SIM.lit[b2.id]) return 'en serie deben lucir (tenue), no apagarse';
+    return null;
+  })],
+
+  ['lab · sobretensión: la bombilla se funde y se puede sustituir', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 24 });
+    const b1 = mkComp('bombilla', 260, 100, { vn: 6, wn: 3 });
+    mkWire(pila, 'p', b1, 'a', 'negro'); mkWire(b1, 'b', pila, 'm', 'negro');
+    update();
+    if (!b1.state.quemado) return 'con 24 V una bombilla de 6 V debe fundirse';
+    if (SIM.lit[b1.id]) return 'fundida no puede lucir';
+    if (!__t.msgs('err').length) return 'falta el mensaje de bombilla fundida';
+    b1.state.quemado = false; pila.props.v = 4.5;
+    update();
+    return SIM.lit[b1.id] ? null : 'con 4,5 V debería lucir tras sustituirla';
+  })],
+
+  ['lab · divisor de tensión: el voltímetro lee la mitad', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 12 });
+    const r1c = mkComp('resistencia', 260, 100, { r: 100 });
+    const r2c = mkComp('resistencia', 400, 100, { r: 100 });
+    const vm = mkComp('voltimetro', 400, 260);
+    mkWire(pila, 'p', r1c, 'a', 'negro'); mkWire(r1c, 'b', r2c, 'a', 'negro');
+    mkWire(r2c, 'b', pila, 'm', 'negro');
+    mkWire(vm, 'a', r2c, 'a', 'negro'); mkWire(vm, 'b', r2c, 'b', 'negro');
+    update();
+    const v = Math.abs(SIM.volt[vm.id] || 0);
+    return (v > 5.7 && v < 6.2) ? null : 'esperaba ~6 V en el divisor, hay ' + v;
+  })],
+
+  ['lab · el fusible funde con el corto y salva la bombilla', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 12 });
+    const fu = mkComp('fusiblelab', 250, 100, { in: 1 });
+    const b1 = mkComp('bombilla', 400, 100, { vn: 12, wn: 5 });
+    mkWire(pila, 'p', fu, 'a', 'negro'); mkWire(fu, 'b', b1, 'a', 'negro');
+    mkWire(b1, 'b', pila, 'm', 'negro');
+    update();
+    if (fu.state.fundido) return 'en régimen normal (0,42 A) el fusible de 1 A no debe fundirse';
+    mkWire(b1, 'a', b1, 'b', 'negro');   // cortocircuito sobre la bombilla
+    update();
+    if (!fu.state.fundido) return 'el fusible debería fundirse con el corto';
+    if (b1.state.quemado) return 'la bombilla debe quedar intacta';
+    if (SIM.lit[b1.id]) return 'con el fusible fundido no hay corriente';
+    const r = RETOS.find(x => x.id === 'rl6');
+    const v = r.check();
+    return v === true ? null : 'el reto rl6 debería validar: ' + v;
+  })],
+
+  ['lab · el interruptor y el reto rl1', async page => page.evaluate(() => {
+    __t.reset(); S.lab = true;
+    const pila = mkComp('pila', 100, 100, { v: 4.5 });
+    const sw = mkComp('int', 250, 100, null, { on: false });
+    const b1 = mkComp('bombilla', 400, 100, { vn: 6, wn: 3 });
+    mkWire(pila, 'p', sw, 'p', 'negro'); mkWire(sw, 's', b1, 'a', 'negro');
+    mkWire(b1, 'b', pila, 'm', 'negro');
+    update();
+    if (SIM.lit[b1.id]) return 'con el interruptor abierto no debe lucir';
+    sw.state.on = true; update();
+    if (!SIM.lit[b1.id]) return 'con el interruptor cerrado debe lucir';
+    const r = RETOS.find(x => x.id === 'rl1');
+    const v = r.check();
+    return v === true ? null : 'el reto rl1 debería validar: ' + v;
+  })],
+
+  ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarVivienda();
+    update();
+    const nREBT = S.comps.length;
+    toggleLab(true);
+    if (!S.lab) return 'debería estar en el laboratorio';
+    if (S.comps.some(c => c.type === 'luz')) return 'el laboratorio no debería contener el montaje REBT';
+    mkComp('resistencia', 300, 300);
+    update();
+    const nLab = S.comps.length;
+    toggleLab(false);
+    if (S.lab) return 'debería haber vuelto al simulador';
+    if (S.comps.length !== nREBT || !S.comps.some(c => c.type === 'luz')) return 'el montaje REBT debería restaurarse';
+    toggleLab(true);
+    const ok = S.comps.length === nLab;
+    toggleLab(false);
+    return ok ? null : 'el laboratorio debería conservar sus componentes';
   })]
 ];
 

@@ -471,6 +471,7 @@ function simulate() {
    ================================================================== */
 function renderResults() {
   if (!SIM) return;
+  if (S.lab && SIM.lab) { renderLabResults(); return; }
   const dot = $('#resDot'), txt = $('#resTxt');
 
   /* modo avería: solo el síntoma, sin diagnóstico */
