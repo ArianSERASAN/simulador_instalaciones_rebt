@@ -384,9 +384,52 @@ Object.assign(DEFS, {
 });
 
 /* ==================================================================
-   SUMINISTRO TRIFÁSICO Y RECEPTOR TRIFÁSICO
+   SUMINISTRO TRIFÁSICO, RECEPTOR TRIFÁSICO Y CPM
    ================================================================== */
 Object.assign(DEFS, {
+
+  cpm: {
+    nombre: 'CPM · Caja de Protección y Medida', corto: 'CPM',
+    w: 132, h: 110, din: false, unico: true,
+    terms: [
+      { id: 'Li', x: 44, y: 0, kind: 'L', lbl: 'L' }, { id: 'Ni', x: 88, y: 0, kind: 'N', lbl: 'N' },
+      { id: 'Lo', x: 44, y: 110, kind: 'L', lbl: 'L' }, { id: 'No', x: 88, y: 110, kind: 'N', lbl: 'N' }
+    ],
+    props: () => ({ fusible: 63 }), state: () => ({ fundido: false }), act: 'tecla',
+    onAct(c) { if (c.state.fundido) { c.state.fundido = false; toast('Fusibles de la CPM sustituidos'); } else toast('Los fusibles de la CPM están en buen estado'); },
+    links(c, o) { const l = [['Ni', 'No']]; if (o.allClosed || !c.state.fundido) l.push(['Li', 'Lo']); return l; },
+    ficha: fichaTxt(`Para <b>un solo usuario</b> (esquema 2.1 de la ITC-BT-12) no hay línea general de alimentación: los <b>fusibles de seguridad y el contador</b> comparten envolvente en el límite de la propiedad. De su salida parte la <b>derivación individual</b> (≥ 6 mm² · caída ≤ 1,5 %) hasta el ICP y el cuadro. <span class="itc">ITC-BT-12</span> <span class="itc">ITC-BT-13</span> <span class="itc">ITC-BT-15</span>`),
+    draw(c, sim, multi) {
+      const fu = c.state.fundido;
+      const kw = sim ? fmtNum(r2(sim.totalP / 1000)) : '0';
+      if (multi) {
+        let s = `<rect x="6" y="10" width="120" height="90" rx="5" fill="#fff" stroke="#3a4352" stroke-width="1.4" stroke-dasharray="6 4"/>
+        <line x1="44" y1="0" x2="44" y2="20" stroke="#3a4352" stroke-width="2"/>
+        <rect x="38" y="20" width="12" height="26" fill="${fu ? '#f6d7d2' : '#fff'}" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2"/>
+        <line x1="44" y1="20" x2="44" y2="46" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2" ${fu ? 'stroke-dasharray="3 4"' : ''}/>
+        <line x1="44" y1="46" x2="44" y2="110" stroke="#3a4352" stroke-width="2"/>
+        <line x1="88" y1="0" x2="88" y2="110" stroke="#3a4352" stroke-width="2"/>
+        <circle cx="44" cy="66" r="12" fill="#fff" stroke="#3a4352" stroke-width="1.6"/>
+        <text x="44" y="70" font-size="8" fill="#242b36" text-anchor="middle" font-weight="700">kWh</text>
+        <text x="66" y="94" font-size="9" fill="#242b36" text-anchor="middle" font-weight="700">CPM</text>`;
+        s += `<rect data-act="tecla" data-comp="${c.id}" x="8" y="12" width="116" height="84" fill="rgba(0,0,0,0)"/>`;
+        return s;
+      }
+      let s = `
+      <rect x="4" y="8" width="124" height="94" rx="8" fill="#4a5261" stroke="#333a46" stroke-width="1.6"/>
+      <rect x="12" y="16" width="34" height="52" rx="5" fill="#5b6473"/>
+      <rect x="20" y="24" width="16" height="36" rx="3" fill="${fu ? '#3a3f49' : '#c9cfd8'}" stroke="#2c313a"/>
+      <text x="28" y="46" font-size="8" fill="${fu ? '#e5533d' : '#4a5261'}" text-anchor="middle" font-weight="800">${fu ? '✕' : c.props.fusible}</text>
+      <rect x="54" y="16" width="66" height="30" rx="4" fill="#1c2430" stroke="#333a46"/>
+      <text x="87" y="35" font-size="10" fill="#7be2a4" text-anchor="middle" font-family="ui-monospace,monospace" font-weight="700">${kw} kW</text>
+      <circle cx="87" cy="60" r="9" fill="#f6f7f9" stroke="#b4bac4"/>
+      <line x1="87" y1="60" x2="87" y2="53" stroke="#e5533d" stroke-width="1.8"/>
+      <text x="66" y="96" font-size="9" fill="#c9cfd8" text-anchor="middle" font-weight="700">CPM · FUSIBLES + CONTADOR</text>`;
+      if (fu) s += `<g class="tripmark"><circle cx="120" cy="14" r="7" fill="#e5533d"/><text x="120" y="17" font-size="9" fill="#fff" text-anchor="middle" font-weight="800">!</text></g>`;
+      s += `<rect data-act="tecla" data-comp="${c.id}" x="8" y="12" width="116" height="84" fill="rgba(0,0,0,0)"/>`;
+      return s;
+    }
+  },
 
   red3: {
     nombre: 'Red trifásica 400/230 V', corto: 'Red 3~',
@@ -458,7 +501,7 @@ Object.assign(DEFS, {
    ================================================================== */
 const PAL_CATS = [
   { id: 'cuadro', n: 'Cuadro y tierra', items: ['iga', 'dif', 'pia', 'borne', 'pica'] },
-  { id: 'enlace', n: 'Enlace', items: ['red', 'red3', 'cgp', 'contador', 'icp'] },
+  { id: 'enlace', n: 'Enlace', items: ['red', 'red3', 'cpm', 'cgp', 'contador', 'icp'] },
   { id: 'maniobras', n: 'Maniobras', items: ['int', 'conm', 'cruz', 'puls', 'tele', 'minut', 'presencia', 'crepus', 'prog'] },
   { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor', 'motor3'] }
 ];
@@ -468,11 +511,12 @@ const PAL_CATS = [
    ================================================================== */
 function ordenEnlaceOK() {
   const sup = getSupply();
+  const cpm = S.comps.find(c => c.type === 'cpm');
   const cgp = S.comps.find(c => c.type === 'cgp');
   const cont = S.comps.find(c => c.type === 'contador');
   const icp = S.comps.find(c => c.type === 'icp');
   const iga = S.comps.find(c => c.type === 'iga');
-  if (!sup || !cgp || !cont || !icp) return false;
+  if (!sup || !icp) return false;
   const pot = buildUF({ allClosed: true });
   const potPhs = sup.phases.map(t => pot.f(K(sup.comp.id, t)));
   const fed = (tg, ti) => potPhs.includes(pot.f(K(tg.id, ti)));
@@ -481,6 +525,13 @@ function ordenEnlaceOK() {
     const tPhs = sup.phases.map(p => t.f(K(sup.comp.id, p)));
     return !tPhs.includes(t.f(K(tg.id, ti)));
   };
+  if (cpm) {
+    /* esquema 2.1 (un solo usuario): acometida → CPM → ICP → IGA, sin LGA */
+    if (cgp || cont) return false;
+    return fed(cpm, 'Li') && fed(icp, 'Li') &&
+      cortaA(cpm, icp, 'Li') && (!iga || cortaA(icp, iga, 'Li'));
+  }
+  if (!cgp || !cont) return false;
   return fed(cgp, 'Li') && fed(cont, 'Li') && fed(icp, 'Li') &&
     cortaA(cgp, cont, 'Li') && cortaA(cont, icp, 'Li') && (!iga || cortaA(icp, iga, 'Li'));
 }
@@ -535,9 +586,16 @@ function emitirBoletin() {
   add(!SIM.fault && !averiado,
     'Sin cortocircuitos, derivaciones ni protecciones disparadas', 'ITC-BT-22 · ITC-BT-24');
 
-  if (['cgp', 'contador', 'icp'].some(t => S.comps.some(c => c.type === t))) {
+  if (['cgp', 'contador', 'icp', 'cpm'].some(t => S.comps.some(c => c.type === t))) {
+    const conCPM = S.comps.some(c => c.type === 'cpm');
     add(ordenEnlaceOK(),
-      'Instalación de enlace completa y en orden: acometida → CGP → contador → ICP → IGA', 'ITC-BT-12 a ITC-BT-17');
+      conCPM ? 'Instalación de enlace para un solo usuario: acometida → CPM → ICP → IGA (sin LGA)'
+             : 'Instalación de enlace completa y en orden: acometida → CGP → contador → ICP → IGA', 'ITC-BT-12 a ITC-BT-17');
+  }
+
+  if (SIM.di) {
+    add(SIM.di.smin >= DI_SEC_MIN && SIM.di.pct <= DI_CAIDA_SIN_LGA,
+      `Derivación individual: sección ≥ ${DI_SEC_MIN} mm² y caída ≤ ${fmtNum(DI_CAIDA_SIN_LGA)} % (actual: ${fmtSec(SIM.di.smin)} mm² · ${fmtNum(SIM.di.pct)} %)`, 'ITC-BT-15');
   }
 
   const conforme = items.every(i => i.ok);
@@ -596,6 +654,38 @@ function montarVivienda() {
   mkWire(borne, 'p3', pica, 'PE', 'tierra', 2.5);
   return { red, iga, dif, pia1, pia2, int1, luz, toma, borne, pica };
 }
+/* chalet de referencia: esquema 2.1 (Red → CPM → DI → ICP → IGA → cuadro) */
+function montarChalet() {
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  const red = mkComp('red', 180, 24);
+  const cpm = mkComp('cpm', 500, 16);
+  const icp = mkComp('icp', 70, DIN_Y, { calibre: 25 }, { on: true });
+  const iga = mkComp('iga', 150, DIN_Y, { calibre: 25 }, { on: true });
+  const dif = mkComp('dif', 240, DIN_Y, {}, { on: true });
+  const pia1 = mkComp('pia', 335, DIN_Y, { calibre: 10, circuito: 'C1' }, { on: true });
+  const pia2 = mkComp('pia', 410, DIN_Y, { calibre: 16, circuito: 'C2' }, { on: true });
+  const int1 = mkComp('int', 130, 560, null, { on: true });
+  const luz = mkComp('luz', 330, 600);
+  const toma = mkComp('toma', 560, 600, { carga: 1200 });
+  const borne = mkComp('borne', 320, 880);
+  const pica = mkComp('pica', 170, 950);
+  mkWire(red, 'L', cpm, 'Li', 'marron', 16); mkWire(red, 'N', cpm, 'Ni', 'azul', 16);
+  mkWire(cpm, 'Lo', icp, 'Li', 'marron', 10); mkWire(cpm, 'No', icp, 'Ni', 'azul', 10);
+  const diF = S.wires[S.wires.length - 2], diN = S.wires[S.wires.length - 1];
+  mkWire(icp, 'Lo', iga, 'Li', 'marron', 10); mkWire(icp, 'No', iga, 'Ni', 'azul', 10);
+  mkWire(iga, 'Lo', dif, 'Li', 'marron', 6); mkWire(iga, 'No', dif, 'Ni', 'azul', 6);
+  mkWire(dif, 'Lo', pia1, 'Li', 'marron', 2.5); mkWire(dif, 'No', pia1, 'Ni', 'azul', 2.5);
+  mkWire(dif, 'Lo', pia2, 'Li', 'marron', 2.5); mkWire(dif, 'No', pia2, 'Ni', 'azul', 2.5);
+  mkWire(pia1, 'Lo', int1, 'p', 'marron', 1.5);
+  mkWire(int1, 's', luz, 'L', 'negro', 1.5);
+  mkWire(pia1, 'No', luz, 'N', 'azul', 1.5);
+  mkWire(pia2, 'Lo', toma, 'L', 'marron', 2.5);
+  mkWire(pia2, 'No', toma, 'N', 'azul', 2.5);
+  mkWire(toma, 'PE', borne, 'p1', 'tierra', 2.5);
+  mkWire(borne, 'p3', pica, 'PE', 'tierra', 2.5);
+  return { red, cpm, icp, iga, dif, pia1, pia2, int1, luz, toma, borne, pica, diF, diN };
+}
+
 function quitarCable(compId, term) {
   S.wires = S.wires.filter(w => !((w.a.c === compId && w.a.t === term) || (w.b.c === compId && w.b.t === term)));
 }
@@ -677,6 +767,21 @@ const AVERIAS = [
     check() {
       const t = tomaOK(); if (t !== true) return t;
       if (hayErrores()) return 'El defecto sigue: piensa qué protege el PIA (¿el aparato o el cable?).';
+      return true;
+    }
+  },
+  {
+    id: 'a6', t: 'El chalet a media luz', modo: 'instalador',
+    s: 'En un chalet con CPM, al enchufar cargas grandes las luces pierden brillo y el tramo que va de la CPM al cuadro se calienta. El proyecto decía «DI de 6 mm²», pero algo no cuadra.',
+    build() {
+      const m = montarChalet();
+      m.diF.sec = 1.5; m.diN.sec = 1.5; m.diF.len = 25; m.diN.len = 25;   // DI mal ejecutada
+      m.toma.props.carga = 3500;
+    },
+    check() {
+      const t = tomaOK(); if (t !== true) return t;
+      const l = luzOK(); if (l !== true) return l;
+      if (hayErrores()) return 'El defecto sigue en el tramo de enlace: mide la sección de la derivación individual.';
       return true;
     }
   }
@@ -797,6 +902,23 @@ RETOS.push(
       if (!ordenEnlaceOK()) return 'El orden correcto es Red → CGP → contador → ICP → IGA, cada uno alimentando al siguiente.';
       const ev = pureEval();
       if (!S.comps.some(c => c.type === 'luz' && ev.lit[c.id])) return 'Termina con un punto de luz encendido aguas abajo.';
+      if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
+      return true;
+    }
+  },
+  {
+    id: 'r9', t: 'Chalet: enlace con CPM', modo: 'instalador',
+    desc: 'Para <b>un solo usuario</b> (esquema 2.1 de la ITC-BT-12) no hay LGA: monta <b>Red → CPM → ICP → IGA</b> y su cuadro, con la <b>derivación individual de 6 mm² o más</b> (tramo CPM → ICP), y termina con una luz encendida. Sin fallos.',
+    check() {
+      if (S.mode === 'aprendiz') return 'Cambia a modo Instalador.';
+      if (!S.comps.some(c => c.type === 'cpm')) return 'Falta la CPM (pestaña Enlace).';
+      if (!S.comps.some(c => c.type === 'icp')) return 'Falta el ICP entre la CPM y el IGA.';
+      if (!S.comps.some(c => c.type === 'iga')) return 'Remata el cuadro con su IGA.';
+      if (!ordenEnlaceOK()) return 'El orden correcto es Red → CPM → ICP → IGA, cada uno alimentando al siguiente (y sin CGP ni contador sueltos).';
+      const ev = pureEval();
+      if (!S.comps.some(c => c.type === 'luz' && ev.lit[c.id])) return 'Termina con un punto de luz encendido.';
+      if (!SIM.di) return 'No se detecta la derivación individual: cablea CPM → ICP.';
+      if (SIM.di.smin < DI_SEC_MIN) return 'La derivación individual debe ser de 6 mm² como mínimo (toca sus cables y cambia la sección).';
       if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
       return true;
     }

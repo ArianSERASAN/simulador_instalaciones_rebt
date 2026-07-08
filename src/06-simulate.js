@@ -6,7 +6,7 @@
 function simulate() {
   const msgs = [];
   const res = { msgs, lit: {}, vlit: {}, tomas: {}, liveW: {}, circuits: [], difConTension: {}, sinRed: false, fault: null,
-    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true };
+    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true, di: null };
   const sup = getSupply();
   const picas = S.comps.filter(c => c.type === 'pica');
   const inst = S.mode !== 'aprendiz';
@@ -31,10 +31,10 @@ function simulate() {
       const termsSum = [...sup.phases, 'N'];
       const tA = termsSum[corto.i], tB = termsSum[corto.j];
       const esFF = corto.faseFase;
-      const orden = { pia: 0, iga: 1, icp: 2, cgp: 3 };   // selectividad
+      const orden = { pia: 0, iga: 1, icp: 2, cgp: 3, cpm: 3 };   // selectividad
       const cands = S.comps.filter(c =>
         ((c.type === 'pia' || c.type === 'iga' || c.type === 'icp') && c.state.on && !c.state.trip) ||
-        (c.type === 'cgp' && !c.state.fundido))
+        ((c.type === 'cgp' || c.type === 'cpm') && !c.state.fundido))
         .sort((a, b) => orden[a.type] - orden[b.type]);
       let disp = null;
       for (const c of cands) {
@@ -43,9 +43,9 @@ function simulate() {
       }
       const donde = esFF ? `¡Cortocircuito entre dos fases (${V_LL} V)!` : '¡Cortocircuito! Fase y neutro se tocan sin pasar por ningún receptor.';
       if (disp) {
-        if (disp.type === 'cgp') {
+        if (disp.type === 'cgp' || disp.type === 'cpm') {
           disp.state.fundido = true;
-          msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la CGP: corrige el cableado y sustitúyelos (toca la CGP).`, itc: 'ITC-BT-13 · ITC-BT-22' });
+          msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la ${disp.type === 'cpm' ? 'CPM' : 'CGP'}: corrige el cableado y sustitúyelos (tócala).`, itc: 'ITC-BT-13 · ITC-BT-22' });
         } else {
           disp.state.trip = true; disp.state.on = false;
           const quien = disp.type === 'iga' ? 'el IGA' : (disp.type === 'icp' ? 'el ICP' : 'el PIA de ' + disp.props.calibre + ' A');
@@ -300,6 +300,43 @@ function simulate() {
   for (const d of S.comps.filter(c => c.type === 'dif')) {
     const n = res.circuits.filter(ci => ci.dif === d.id).length;
     if (n > 5) msgs.push({ lvl: 'err', txt: `Hay ${n} circuitos colgando de un solo diferencial: el máximo es 5. Añade otro ID de 30 mA y reparte.`, itc: 'ITC-BT-25' });
+  }
+
+  /* --- derivación individual (ITC-BT-15) ---
+     tramo entre el equipo de medida (CPM o contador) y el primer
+     dispositivo general (ICP, o IGA si no hay ICP): cables que quedan
+     sin fase al abrir la medida pero la conservan al abrir el DG. */
+  const medida = S.comps.find(c => c.type === 'cpm') || S.comps.find(c => c.type === 'contador');
+  const dg = S.comps.find(c => c.type === 'icp') || S.comps.find(c => c.type === 'iga');
+  if (sup && medida && dg && !potCorto) {
+    const tM = buildUF({ allClosed: true, open: { [medida.id]: true } });
+    const tD = buildUF({ allClosed: true, open: { [dg.id]: true } });
+    const tMR = supRoots(tM, sup), tDR = supRoots(tD, sup);
+    const diF = [], diN = [];
+    for (const w of S.wires) {
+      const kb = K(w.a.c, w.a.t);
+      const nb = pot.f(kb);
+      const i = potR.phs.indexOf(nb);
+      if (i >= 0) {
+        if (tM.f(kb) !== tMR.phs[i] && tD.f(kb) === tDR.phs[i]) diF.push(w);
+      } else if (nb === potR.nu) {
+        if (tM.f(kb) !== tMR.nu && tD.f(kb) === tDR.nu) diN.push(w);
+      }
+    }
+    if (diF.length) {
+      const secs = [...diF, ...diN].map(w => w.sec);
+      const smin = Math.min(...secs);
+      const lf = diF.reduce((a, w) => a + w.len, 0);
+      const caida = (2 * RHO_CU * lf * res.totalI) / smin;
+      const pct = r2(caida / V_RED * 100);
+      res.di = { smin, pct, lf };
+      if (inst && smin < DI_SEC_MIN) {
+        msgs.push({ lvl: 'err', txt: `La derivación individual (${medida.type === 'cpm' ? 'CPM' : 'contador'} → ${dg.type === 'icp' ? 'ICP' : 'IGA'}) tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15' });
+      }
+      if (inst && pct > DI_CAIDA_SIN_LGA) {
+        msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la derivación individual (máximo ${fmtNum(DI_CAIDA_SIN_LGA)} % para un solo usuario sin LGA): aumenta la sección o acorta el tramo.`, itc: 'ITC-BT-15' });
+      }
+    }
   }
 
   /* --- IGA en cabecera --- */

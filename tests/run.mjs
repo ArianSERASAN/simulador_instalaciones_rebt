@@ -329,6 +329,76 @@ const TESTS = [
     if (!st || !st.tension || !st.tierra) return 'la toma debería tener tensión y tierra';
     if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
     return null;
+  })],
+
+  /* ---------- Fase 2: CPM y derivación individual ---------- */
+
+  ['chalet con CPM: funciona, enlace en orden y DI detectada', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    S.mode = 'instalador';
+    update();
+    if (!SIM.lit[m.luz.id]) return 'la luz del chalet debería encender';
+    if (!ordenEnlaceOK()) return 'Red → CPM → ICP → IGA debería validar el orden del enlace';
+    if (!SIM.di) return 'debería detectarse la derivación individual';
+    if (SIM.di.smin !== 10) return 'la DI del chalet es de 10 mm², se detectó ' + SIM.di.smin;
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    return null;
+  })],
+
+  ['DI con sección < 6 mm²: error ITC-BT-15', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    S.mode = 'instalador';
+    m.diF.sec = 2.5; m.diN.sec = 2.5;
+    update();
+    return __t.hasMsg('err', 'derivación individual') && __t.hasMsg('err', 'sección mínima')
+      ? null : 'falta el error de sección mínima de la DI';
+  })],
+
+  ['DI con caída > 1,5 %: error ITC-BT-15', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    S.mode = 'instalador';
+    m.toma.props.carga = 3500;
+    m.diF.sec = 6; m.diN.sec = 6; m.diF.len = 60;
+    update();
+    return __t.hasMsg('err', 'derivación individual (máximo 1,5') ? null : 'falta el error de caída en la DI: ' + __t.msgs('err').join(' | ');
+  })],
+
+  ['corto aguas abajo de la CPM sin más protecciones: funde la CPM', async page => page.evaluate(() => {
+    __t.reset();
+    const red = mkComp('red', 180, 24);
+    const cpm = mkComp('cpm', 500, 16);
+    mkWire(red, 'L', cpm, 'Li', 'marron'); mkWire(red, 'N', cpm, 'Ni', 'azul');
+    mkWire(cpm, 'Lo', cpm, 'No', 'marron');
+    update();
+    if (!cpm.state.fundido) return 'los fusibles de la CPM deberían fundirse';
+    if (!__t.hasMsg('err', 'CPM')) return 'el mensaje debería citar la CPM';
+    return null;
+  })],
+
+  ['CPM mezclada con contador suelto: el orden del enlace no valida', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarChalet();
+    mkComp('contador', 600, 300);
+    update();
+    return ordenEnlaceOK() ? 'no debería validar con CPM y contador a la vez' : null;
+  })],
+
+  ['avería a6 (DI subdimensionada): se detecta y se repara', async page => page.evaluate(() => {
+    __t.reset();
+    const a = AVERIAS.find(x => x.id === 'a6');
+    S.mode = 'instalador';
+    a.build();
+    update();
+    if (!__t.msgs('err').length) return 'la avería debería producir errores en la DI';
+    if (a.check() === true) return 'la avería no debería darse por resuelta sin reparar';
+    // reparación: sección correcta en los dos conductores de la DI
+    for (const w of S.wires) if (w.sec === 1.5 && w.len === 25) w.sec = 6;
+    update();
+    const v = a.check();
+    return v === true ? null : 'tras reparar debería validar, dice: ' + v;
   })]
 ];
 

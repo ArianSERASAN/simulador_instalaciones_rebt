@@ -6,6 +6,21 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 2: enlace unifamiliar completo (esquema 2.1)
+- **CPM · Caja de Protección y Medida** (pestaña Enlace): fusibles y contador
+  en la misma envolvente para un solo usuario, sin LGA (ITC-BT-12/13). Sus
+  fusibles se funden ante cortos sin protección aguas abajo y se sustituyen
+  tocándola, como la CGP.
+- **Derivación individual** detectada automáticamente (tramo medida → ICP/IGA)
+  con sus reglas de la ITC-BT-15: sección mínima 6 mm² y caída ≤ 1,5 %
+  (un solo usuario, sin LGA), en modos con cálculo. Punto nuevo del boletín.
+- Secciones de enlace **16 y 25 mm²** disponibles en la ficha del cable.
+- `ordenEnlaceOK` valida también el esquema con CPM (y rechaza mezclarla con
+  CGP/contador sueltos).
+- Reto **«Chalet: enlace con CPM»** (r9) y avería **«El chalet a media luz»**
+  (a6, DI subdimensionada), con `montarChalet()` de referencia.
+- 6 escenarios nuevos en `tests/run.mjs` (30 en total). Caché SW `rebt-v8`.
+
 ### Añadido — Fase 1: suministro trifásico
 - **Red trifásica 400/230 V** (`red3`, pestaña Enlace): bornes L1·L2·L3·N.
   El motor eléctrico ahora es multifase: detecta cortocircuitos fase-fase

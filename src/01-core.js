@@ -44,7 +44,10 @@ const V_LL = 400;                 // tensión entre fases (suministro trifásico
 const RHO_CU = 0.0172;            // Ω·mm²/m
 const CAIDA_MAX = 3;              // % en viviendas (ITC-BT-19)
 const MAX_PIA_SECCION = { '1.5': 10, '2.5': 16, '4': 20, '6': 25, '10': 40 };
-const SECCIONES = [1.5, 2.5, 4, 6, 10];
+const SECCIONES = [1.5, 2.5, 4, 6, 10, 16, 25];
+const DI_SEC_MIN = 6;             // sección mínima de la derivación individual (ITC-BT-15)
+const DI_CAIDA_SIN_LGA = 1.5;     // % máx. en la DI de un solo usuario, sin LGA (ITC-BT-15)
+const DI_CAIDA_CON_LGA = 1;       // % máx. en la DI con contadores centralizados (ITC-BT-15)
 const CALIBRES_PIA = [10, 16, 20, 25, 32, 40];
 const TABLA_C = {
   C1: { uso: 'Iluminación', pia: 10, sec: 1.5, tubo: 16, max: 30 },

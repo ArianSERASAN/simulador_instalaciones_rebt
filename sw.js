@@ -1,6 +1,6 @@
 /* Service worker del Simulador REBT: precachea la app para que
    funcione sin conexión una vez visitada. */
-const CACHE = 'rebt-v7';
+const CACHE = 'rebt-v8';
 const FILES = [
   './', './index.html', './styles.css',
   './src/01-core.js', './src/02-catalog.js', './src/03-draw.js', './src/04-ui.js',
