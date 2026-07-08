@@ -6,6 +6,16 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 7: examen IBTB y previsión de cargas
+- **Examen tipo test** (menú, `src/11-modos.js`): banco de **44 preguntas**
+  IBTB con su ITC y explicación; exámenes de 10 al azar, corrección razonada
+  pregunta a pregunta, mejor nota guardada y **repaso de falladas**.
+- **Proyecto: previsión de cargas** (menú): calculadora de la ITC-BT-10 con
+  el coeficiente de simultaneidad oficial (tabla 1–21 y fórmula para más),
+  viviendas básicas/elevadas, servicios generales, locales (100 W/m², mínimo
+  3.450 W) y garajes (10/20 W/m²), con recomendación de IGM (160/250 A).
+- 4 escenarios nuevos en `tests/run.mjs` (56 en total). Caché SW `rebt-v13`.
+
 ### Añadido — Fase 6: caída de tensión en cascada
 - La tensión que llega a cada receptor descuenta ahora **toda la cadena**:
   caída fase-neutro de la LGA + caída de su derivación individual + caída del

@@ -98,13 +98,23 @@ Generalizar el motor de conectividad (unión-búsqueda) de «fase única» a
   método que se estudia para el IBTB; el MNA exacto queda reservado al
   Laboratorio, donde sí es el objetivo didáctico.
 
-## Fase 7 — Modos extra
+## Fase 7 — Modos extra · HECHA
 
-- **Modo Examen IBTB**: banco de preguntas tipo test por ITC, offline, con
-  corrección y estadísticas de progreso.
-- **Modo Proyecto**: previsión de cargas y grados de electrificación
-  (ITC-BT-10), dimensionado guiado de una vivienda/edificio.
-- Más retos y averías acumulados de las fases anteriores.
+- **Examen tipo test IBTB** (menú): banco de 44 preguntas con su ITC,
+  exámenes de 10 al azar con corrección razonada, mejor nota y repaso de
+  falladas. Offline, como todo lo demás.
+- **Proyecto: previsión de cargas** (menú): calculadora de la ITC-BT-10 con
+  coeficiente de simultaneidad, servicios generales, locales y garajes, y
+  recomendación de IGM.
+
+---
+
+## Posibles fases futuras (no comprometidas)
+
+- Más averías de edificio y del laboratorio; retos de baño (ITC-BT-27).
+- Volúmenes de baño dibujables en el plano.
+- MNA en corriente alterna con fasores para el simulador REBT completo.
+- Exportar/importar montajes como archivo (compartir entre dispositivos).
 
 ---
 

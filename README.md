@@ -20,6 +20,7 @@ src/
   08-phase2.js        Fase 2 registrada sobre DEFS (CGP, telerruptor…) +
                       enlace ITC-BT-12 (CPM, CGP 3~, IGM, embarrado, viviendas)
   10-lab.js           laboratorio de circuitos (solver por análisis nodal)
+  11-modos.js         examen tipo test IBTB + previsión de cargas (ITC-BT-10)
   09-main.js          boot final (se carga el último)
 sw.js                 precache offline (subir el nº de versión al publicar)
 manifest.webmanifest, icon.svg, apple-touch-icon.png

@@ -34,7 +34,8 @@ src/08-phase2.js    Fase 2 sobre DEFS (CGP, contador, telerruptor, avería…)
                     + enlace completo (CPM, CGP 3~, IGM, embarrado, viviendas)
 src/10-lab.js       laboratorio de circuitos: solver real (análisis nodal),
                     pila/resistencia/bombilla/medidores, retos rl1–rl6
-src/09-main.js      boot final (con la Fase 2 y el laboratorio ya registrados)
+src/11-modos.js     examen tipo test IBTB + proyecto/previsión de cargas
+src/09-main.js      boot final (se carga el último)
 sw.js               precache offline
 ```
 

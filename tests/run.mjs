@@ -688,6 +688,55 @@ const TESTS = [
     return (vluz > 229.5 && vluz <= 230) ? null : 'sin cargas grandes deberían llegar ~230 V, llegan ' + vluz;
   })],
 
+  /* ---------- Fase 7: examen y proyecto ---------- */
+
+  ['examen: el banco de preguntas es consistente', async page => page.evaluate(() => {
+    if (EXAM_QS.length < 40) return 'el banco debería tener al menos 40 preguntas, hay ' + EXAM_QS.length;
+    for (const q of EXAM_QS) {
+      if (!q.q || !q.itc || !q.exp) return 'pregunta incompleta: ' + q.q;
+      if (!Array.isArray(q.ops) || q.ops.length !== 4) return 'cada pregunta lleva 4 opciones: ' + q.q;
+      if (!(q.ok >= 0 && q.ok <= 3)) return 'índice de respuesta inválido: ' + q.q;
+    }
+    return null;
+  })],
+
+  ['examen: baraja 10 preguntas únicas y puntúa', async page => page.evaluate(() => {
+    const idxs = examBarajar(EXAM_QS.map((q, i) => i), 10);
+    if (idxs.length !== 10 || new Set(idxs).size !== 10) return 'deberían salir 10 preguntas distintas';
+    store.del('rebt.exam');
+    startExamen(idxs);
+    for (let i = 0; i < 10; i++) {
+      const qi = EXAM.qs[EXAM.i];
+      examResponder(i < 7 ? EXAM_QS[qi].ok : (EXAM_QS[qi].ok + 1) % 4);   // 7 aciertos, 3 fallos
+      if (i < 9) { EXAM.i++; }
+    }
+    examFinal();
+    const st = JSON.parse(store.get('rebt.exam'));
+    if (st.intentos !== 1) return 'debería registrarse 1 intento';
+    if (st.record !== 7) return 'la mejor nota debería ser 7, es ' + st.record;
+    if (st.falladas.length !== 3) return 'deberían quedar 3 falladas para repasar, hay ' + st.falladas.length;
+    return null;
+  })],
+
+  ['proyecto: coeficiente de simultaneidad de la ITC-BT-10', async page => page.evaluate(() => {
+    const casos = [[1, 1], [4, 3.8], [10, 8.5], [21, 15.3], [25, 17.3]];
+    for (const [n, c] of casos) {
+      if (Math.abs(coefSimultaneidad(n) - c) > 0.001) return `coef(${n}) debería ser ${c}, es ${coefSimultaneidad(n)}`;
+    }
+    return null;
+  })],
+
+  ['proyecto: previsión de un edificio de 10 viviendas', async page => page.evaluate(() => {
+    const r = previsionEdificio({ nBas: 10, nElev: 0, wServicios: 8000, m2Locales: 50, m2GarajeNat: 0, m2GarajeForz: 100 });
+    if (Math.abs(r.viv - 8.5 * 5750) > 0.01) return 'viviendas: esperaba 48.875 W, hay ' + r.viv;
+    if (r.locales !== 5000) return 'locales 50 m² → 5.000 W, hay ' + r.locales;
+    if (r.garaje !== 2000) return 'garaje forzado 100 m² → 2.000 W, hay ' + r.garaje;
+    if (Math.abs(r.total - 63875) > 0.01) return 'total esperado 63.875 W, hay ' + r.total;
+    const r2b = previsionEdificio({ nBas: 0, nElev: 0, wServicios: 0, m2Locales: 20, m2GarajeNat: 0, m2GarajeForz: 0 });
+    if (r2b.locales !== 3450) return 'un local pequeño aplica el mínimo de 3.450 W';
+    return null;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();
