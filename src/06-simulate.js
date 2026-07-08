@@ -322,8 +322,12 @@ function simulate() {
   const tramoAguasAbajo = (desde, hasta) => {
     const tM = buildUF({ allClosed: true, open: { [desde.id]: true } });
     const tMR = supRoots(tM, sup);
-    const tD = hasta ? buildUF({ allClosed: true, open: { [hasta.id]: true } }) : null;
-    const tDR = hasta ? supRoots(tD, sup) : null;
+    /* `hasta` puede ser un aparato o una lista (p. ej. todos los IGM) */
+    const hs = hasta ? (Array.isArray(hasta) ? hasta : [hasta]) : [];
+    const tDs = hs.map(h => {
+      const t = buildUF({ allClosed: true, open: { [h.id]: true } });
+      return { t, r: supRoots(t, sup) };
+    });
     const wF = [], wN = [];
     for (const w of S.wires) {
       const kb = K(w.a.c, w.a.t);
@@ -332,7 +336,7 @@ function simulate() {
       const esFase = i >= 0, esNeutro = nb === potR.nu;
       if (!esFase && !esNeutro) continue;
       if (!(esFase ? tM.f(kb) !== tMR.phs[i] : tM.f(kb) !== tMR.nu)) continue;
-      if (tD && (esFase ? tD.f(kb) !== tDR.phs[i] : tD.f(kb) !== tDR.nu)) continue;
+      if (tDs.some(({ t, r }) => esFase ? t.f(kb) !== r.phs[i] : t.f(kb) !== r.nu)) continue;
       (esFase ? wF : wN).push(w);
     }
     let P = 0, I = 0;
@@ -378,9 +382,9 @@ function simulate() {
     }
     res.di = res.dis[0] || null;
 
-    /* LGA (ITC-BT-14): tramo CGP → IGM */
+    /* LGA (ITC-BT-14): tramo CGP → IGM (con sus ramas a cada centralización) */
     if (conLGA) {
-      const tr = tramoAguasAbajo(cgpAny, igms[0]);
+      const tr = tramoAguasAbajo(cgpAny, igms);
       if (tr.wF.length) {
         const smin = Math.min(...[...tr.wF, ...tr.wN].map(w => w.sec));
         const lf = tr.wF.reduce((a, w) => a + w.len, 0) / sup.phases.length;   // longitud por fase

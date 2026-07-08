@@ -6,6 +6,17 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 4: centralizaciones en más de un lugar (esquema 2.2.2)
+- La **LGA con varias centralizaciones** se detecta completa (tronco común y
+  rama a cada IGM), sin contaminarse con los tramos internos de cada
+  centralización; su límite de caída pasa automáticamente a **1 %**
+  (ITC-BT-14, centralizaciones parciales).
+- Reto **«Edificio por plantas: dos centralizaciones»** (r11): exige dos IGM
+  con sus embarrados, 4 viviendas con tensión repartidas por fases y la
+  **declaración del esquema 2.2.2** en el menú.
+- `montarEdificio2()` de referencia (2 plantas × 2 viviendas).
+- 4 escenarios nuevos en `tests/run.mjs` (43 en total). Caché SW `rebt-v10`.
+
 ### Añadido — Fase 3: centralización de contadores (esquema 2.2.1)
 - Pestaña **Edificio** con cinco componentes nuevos: **CGP trifásica** (fusible
   por fase, neutro seccionable), **IGM** (corte manual 160/250 A, no dispara),

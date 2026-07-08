@@ -507,6 +507,52 @@ const TESTS = [
     const r = RETOS.find(x => x.id === 'r10');
     const v = r.check();
     return v === true ? null : 'el edificio de referencia debería superar el reto: ' + v;
+  })],
+
+  /* ---------- Fase 4: varias centralizaciones (2.2.2) ---------- */
+
+  ['edificio por plantas: 4 viviendas, LGA común con límite 1 %', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio2();
+    S.mode = 'instalador';
+    update();
+    for (const v of m.vivs) if (!SIM.lit[v.id]) return 'las 4 viviendas deberían tener tensión';
+    if (!SIM.lga) return 'debería detectarse la LGA';
+    if (SIM.lga.lim !== 1) return 'con centralizaciones parciales el límite de la LGA es 1 %, es ' + SIM.lga.lim;
+    if (SIM.lga.smin !== 16) return 'la LGA es de 16 mm² (las DI de 10 mm² no deben contaminarla): ' + SIM.lga.smin;
+    if (SIM.dis.length !== 4) return 'deberían detectarse 4 DI, hay ' + SIM.dis.length;
+    if (esquemaDetectado() !== '2.2.2') return 'el esquema detectado debería ser 2.2.2';
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    return null;
+  })],
+
+  ['edificio por plantas: un corto en un embarrado funde la CGP, no los fusibles', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio2();
+    mkWire(m.embs[1], 'a5', m.embs[1], 'n5', 'marron', 16);   // corto en la centralización B
+    update();
+    if (!m.cgp.state.fundido) return 'la CGP debería fundirse (el corto es anterior a los fusibles de seguridad)';
+    if (m.fusis.some(f => f.state.fundido)) return 'los fusibles de seguridad no deben fundirse';
+    return null;
+  })],
+
+  ['reto r11: el edificio por plantas lo supera', async page => page.evaluate(() => {
+    __t.reset();
+    montarEdificio2();
+    S.mode = 'instalador';
+    update();
+    const r = RETOS.find(x => x.id === 'r11');
+    const v = r.check();
+    return v === true ? null : 'el edificio por plantas debería superar el reto: ' + v;
+  })],
+
+  ['esquema declarado distinto del montaje: el boletín lo detecta', async page => page.evaluate(() => {
+    __t.reset();
+    montarChalet();
+    S.esquema = '2.2.1';
+    update();
+    return esquemaDetectado() === '2.1' && S.esquema !== esquemaDetectado()
+      ? null : 'con CPM el esquema detectado debe ser 2.1 y no casar con 2.2.1';
   })]
 ];
 

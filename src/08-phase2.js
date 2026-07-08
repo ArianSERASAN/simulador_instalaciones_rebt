@@ -958,6 +958,50 @@ function montarEdificio() {
   return { red, cgp, igm, emb, fusis, conts, vivs, borne, pica };
 }
 
+/* edificio por plantas: esquema 2.2.2 con dos centralizaciones de 2 viviendas */
+function montarEdificio2() {
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  const red = mkComp('red3', 290, 8);
+  const cgp = mkComp('cgp3', 70, 130);
+  const borne = mkComp('borne', 330, 930);
+  const pica = mkComp('pica', 160, 980);
+  const igms = [], embs = [], fusis = [], conts = [], vivs = [];
+  /* acometida */
+  mkWire(red, 'L1', cgp, 'L1i', 'marron', 25); mkWire(red, 'L2', cgp, 'L2i', 'negro', 25);
+  mkWire(red, 'L3', cgp, 'L3i', 'gris', 25); mkWire(red, 'N', cgp, 'Ni', 'azul', 25);
+  /* fase de cada vivienda: A1→L1, A2→L2, B1→L3, B2→L1 */
+  const fases = [['a', 'marron'], ['b', 'negro'], ['c', 'gris'], ['a', 'marron']];
+  for (let c = 0; c < 2; c++) {
+    const cx = 20 + c * 400;
+    const igm = mkComp('igm', cx + 10, 290, null, { on: true });
+    const emb = mkComp('embarrado', cx + 130, 294);
+    igms.push(igm); embs.push(emb);
+    /* LGA: tronco común + rama a cada centralización */
+    mkWire(cgp, 'L1o', igm, 'L1i', 'marron', 16); mkWire(cgp, 'L2o', igm, 'L2i', 'negro', 16);
+    mkWire(cgp, 'L3o', igm, 'L3i', 'gris', 16); mkWire(cgp, 'No', igm, 'Ni', 'azul', 16);
+    mkWire(igm, 'L1o', emb, 'a1', 'marron', 16); mkWire(igm, 'L2o', emb, 'b1', 'negro', 16);
+    mkWire(igm, 'L3o', emb, 'c1', 'gris', 16); mkWire(igm, 'No', emb, 'n1', 'azul', 16);
+    for (let k = 0; k < 2; k++) {
+      const idx = c * 2 + k;
+      const [fila, color] = fases[idx];
+      const bx = cx + 20 + k * 190;
+      const fu = mkComp('fusi', bx + 40, 450);
+      const co = mkComp('contador', bx, 560);
+      const vi = mkComp('cvivienda', bx, 720);
+      fusis.push(fu); conts.push(co); vivs.push(vi);
+      mkWire(emb, fila + (k + 2), fu, 'in', color, 10);
+      mkWire(fu, 'out', co, 'Li', color, 10);
+      mkWire(emb, 'n' + (k + 2), co, 'Ni', 'azul', 10);
+      mkWire(co, 'Lo', vi, 'L', color, 10);
+      mkWire(co, 'No', vi, 'N', 'azul', 10);
+      mkWire(vi, 'PE', borne, 'p' + (idx + 1), 'tierra', 10);
+    }
+  }
+  mkWire(borne, 'p5', pica, 'PE', 'tierra', 16);
+  S.esquema = '2.2.2';
+  return { red, cgp, igms, embs, fusis, conts, vivs, borne, pica };
+}
+
 function quitarCable(compId, term) {
   S.wires = S.wires.filter(w => !((w.a.c === compId && w.a.t === term) || (w.b.c === compId && w.b.t === term)));
 }
@@ -1228,6 +1272,32 @@ RETOS.push(
       if (fases.size < 3) return 'Reparte las viviendas: cada una debe colgar de una fase distinta (L1, L2 y L3).';
       if (!SIM.lga) return 'No se detecta la LGA: debe ir de la CGP trifásica al IGM.';
       if (SIM.lga.smin < LGA_SEC_MIN) return 'La LGA debe ser de 10 mm² como mínimo (toca sus cables y cambia la sección).';
+      if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
+      return true;
+    }
+  },
+  {
+    id: 'r11', t: 'Edificio por plantas: dos centralizaciones', modo: 'instalador',
+    desc: 'Esquema 2.2.2 (ITC-BT-12): la misma <b>LGA</b> alimenta <b>dos centralizaciones</b> (una por planta), cada una con su <b>IGM</b>, su embarrado y sus viviendas (fusible + contador + DI con tierra). Monta <b>4 viviendas con tensión</b> repartidas en al menos dos fases y <b>declara el esquema 2.2.2</b> en el menú.',
+    check() {
+      if (S.mode === 'aprendiz') return 'Cambia a modo Instalador.';
+      if (S.comps.filter(c => c.type === 'igm').length < 2) return 'Hacen falta dos centralizaciones: un IGM por planta.';
+      if (S.comps.filter(c => c.type === 'embarrado').length < 2) return 'Cada centralización necesita su embarrado.';
+      const vivs = S.comps.filter(c => c.type === 'cvivienda');
+      if (vivs.length < 4) return 'Monta al menos 4 cuadros de vivienda (2 por planta).';
+      if (S.comps.filter(c => c.type === 'contador').length < 4) return 'Cada vivienda necesita su contador.';
+      if (S.comps.filter(c => c.type === 'fusi').length < 4) return 'Cada derivación lleva su fusible de seguridad.';
+      const ev = pureEval();
+      const vivas = vivs.filter(v => ev.lit[v.id]);
+      if (vivas.length < 4) return 'Las 4 viviendas deben quedar con tensión (los dos IGM subidos).';
+      const sup = getSupply();
+      const pot = buildUF({ allClosed: true });
+      const phs = sup.phases.map(t => pot.f(K(sup.comp.id, t)));
+      const fases = new Set(vivas.map(v => phs.indexOf(pot.f(K(v.id, 'L')))).filter(i => i >= 0));
+      if (fases.size < 2) return 'Reparte las viviendas entre fases distintas.';
+      if (!SIM.lga) return 'No se detecta la LGA: debe salir de la CGP trifásica hacia los IGM.';
+      if (SIM.lga.smin < LGA_SEC_MIN) return 'La LGA debe ser de 10 mm² como mínimo.';
+      if (S.esquema !== '2.2.2') return 'Declara el esquema 2.2.2 en el menú (Esquema de enlace).';
       if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
       return true;
     }
