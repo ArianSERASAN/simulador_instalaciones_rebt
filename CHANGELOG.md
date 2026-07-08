@@ -6,6 +6,31 @@ Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 
 ## [Sin publicar]
 
+### Añadido — Fase 3: centralización de contadores (esquema 2.2.1)
+- Pestaña **Edificio** con cinco componentes nuevos: **CGP trifásica** (fusible
+  por fase, neutro seccionable), **IGM** (corte manual 160/250 A, no dispara),
+  **embarrado** de centralización (4 barras × 5 bornes), **fusible de
+  seguridad** por derivación y **cuadro de vivienda compacto** (vivienda
+  entera resumida: demanda ajustable, interruptor propio, tierra por su DI).
+- **LGA** detectada automáticamente (tramo CGP → IGM) con la ITC-BT-14:
+  sección mínima 10 mm² Cu y caída ≤ 0,5 % (1 % hacia centralizaciones
+  parciales), calculada con la corriente de la fase más cargada.
+- **Derivaciones individuales múltiples**: una por contador, con límite de
+  caída del 1 % cuando hay centralización (1,5 % sin LGA).
+- Cada **contador muestra la potencia de su vivienda** (no el total).
+- Avisos de **reparto de fases**: viviendas todas en la misma fase y
+  desequilibrio de corrientes entre L1/L2/L3.
+- Aviso de **centralización sin IGM** en cabecera (ITC-BT-16).
+- Selectividad ampliada: un corto en una DI funde **solo su fusible de
+  seguridad**; la CGP sobrevive.
+- **Declaración de esquema ITC-BT-12** en el menú (2.1 / 2.2.1 / 2.2.2): el
+  boletín comprueba que el montaje se corresponde con el esquema declarado.
+- Boletín ampliado: LGA, DIs y esquema. Reto **«Edificio: contadores
+  centralizados»** (r10) y avería **«El segundo, sin luz»** (a7) con
+  `montarEdificio()` de referencia.
+- El fondo del cuadro de vivienda se oculta en montajes de edificio.
+- 9 escenarios nuevos en `tests/run.mjs` (39 en total). Caché SW `rebt-v9`.
+
 ### Añadido — Fase 2: enlace unifamiliar completo (esquema 2.1)
 - **CPM · Caja de Protección y Medida** (pestaña Enlace): fusibles y contador
   en la misma envolvente para un solo usuario, sin LGA (ITC-BT-12/13). Sus

@@ -48,6 +48,9 @@ const SECCIONES = [1.5, 2.5, 4, 6, 10, 16, 25];
 const DI_SEC_MIN = 6;             // sección mínima de la derivación individual (ITC-BT-15)
 const DI_CAIDA_SIN_LGA = 1.5;     // % máx. en la DI de un solo usuario, sin LGA (ITC-BT-15)
 const DI_CAIDA_CON_LGA = 1;       // % máx. en la DI con contadores centralizados (ITC-BT-15)
+const LGA_SEC_MIN = 10;           // sección mínima Cu de la LGA (ITC-BT-14)
+const LGA_CAIDA_UNICA = 0.5;      // % máx. LGA hacia centralización única (ITC-BT-14)
+const LGA_CAIDA_PARCIAL = 1;      // % máx. LGA hacia centralizaciones parciales (ITC-BT-14)
 const CALIBRES_PIA = [10, 16, 20, 25, 32, 40];
 const TABLA_C = {
   C1: { uso: 'Iluminación', pia: 10, sec: 1.5, tubo: 16, max: 30 },

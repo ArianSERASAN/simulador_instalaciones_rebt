@@ -75,7 +75,8 @@ function energFlags(uf, sup, energia) {
       lit[c.id] = !!(energia && sup && rs.every(r => phs.includes(r)) && new Set(rs).size === 3);
     } else if (c.type === 'luz' || d.load) {
       const a = sup ? uf.f(K(c.id, 'L')) : null, b = sup ? uf.f(K(c.id, 'N')) : null;
-      lit[c.id] = !!(energia && sup && okPar(a, b) && !c.state.quemado);
+      /* una carga con interruptor propio (p. ej. cuadro de vivienda) puede estar apagada */
+      lit[c.id] = !!(energia && sup && okPar(a, b) && !c.state.quemado && c.state.on !== false);
     } else if (c.type === 'toma') {
       const a = sup ? uf.f(K(c.id, 'L')) : null, b = sup ? uf.f(K(c.id, 'N')) : null;
       const pe = uf.f(K(c.id, 'PE'));
@@ -185,6 +186,31 @@ function demandaTotal(fl) {
     }
   }
   return { P, I };
+}
+
+/* intensidad demandada en cada fase (para LGA y desequilibrio) */
+function demandaPorFase(uf, fl, sup) {
+  const { phs, nu } = supRoots(uf, sup);
+  const I = phs.map(() => 0);
+  for (const c of S.comps) {
+    const d = defOf(c);
+    if (d.load3 && fl.lit[c.id]) {
+      const i3 = iReceptor(c);
+      for (let i = 0; i < I.length; i++) I[i] += i3;
+    } else if ((c.type === 'luz' || d.load) && fl.lit[c.id]) {
+      const a = uf.f(K(c.id, 'L')), b = uf.f(K(c.id, 'N'));
+      const i = phs.indexOf(phs.includes(a) ? a : b);
+      if (i >= 0) I[i] += iReceptor(c);
+    } else if (c.type === 'toma') {
+      const st = fl.tomas[c.id];
+      if (st && st.tension && c.props.carga > 0) {
+        const a = uf.f(K(c.id, 'L')), b = uf.f(K(c.id, 'N'));
+        const i = phs.indexOf(phs.includes(a) ? a : b);
+        if (i >= 0) I[i] += c.props.carga / (V_RED * (c.props.fp || 1));
+      }
+    }
+  }
+  return I;
 }
 
 const fmtSec = v => String(v).replace('.', ',');

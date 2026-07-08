@@ -8,6 +8,7 @@
 S.palCat = 'cuadro';
 S.noche = S.noche || false;
 S.averia = null;
+S.esquema = S.esquema || null;
 
 function armarTemporal(c, seg) {
   c.state.onUntil = Date.now() + seg * 1000;
@@ -93,9 +94,10 @@ Object.assign(DEFS, {
     ],
     props: () => ({}), state: () => ({}),
     links: () => [['Li', 'Lo'], ['Ni', 'No']],
-    ficha: `Mide la energía consumida (kWh). Va precintado por la compañía, entre la CGP y el ICP. En modo Instalador su pantalla muestra la <b>potencia instantánea</b> que está pasando por él. <span class="itc">ITC-BT-16</span>`,
+    ficha: `Mide la energía consumida (kWh). Va precintado por la compañía: tras la CGP en un suministro individual, o en la <b>centralización</b> (tras su fusible de seguridad) en un edificio. Su pantalla muestra la <b>potencia instantánea</b> que pasa por él. <span class="itc">ITC-BT-16</span>`,
     draw(c, sim, multi) {
-      const kw = sim ? fmtNum(r2(sim.totalP / 1000)) : '0';
+      const p = sim ? (sim.pMedida && sim.pMedida[c.id] != null ? sim.pMedida[c.id] : sim.totalP) : 0;
+      const kw = fmtNum(r2(p / 1000));
       if (multi) return `
         <line x1="34" y1="0" x2="34" y2="104" stroke="#3a4352" stroke-width="2"/>
         <line x1="70" y1="0" x2="70" y2="104" stroke="#3a4352" stroke-width="2"/>
@@ -401,7 +403,8 @@ Object.assign(DEFS, {
     ficha: fichaTxt(`Para <b>un solo usuario</b> (esquema 2.1 de la ITC-BT-12) no hay línea general de alimentación: los <b>fusibles de seguridad y el contador</b> comparten envolvente en el límite de la propiedad. De su salida parte la <b>derivación individual</b> (≥ 6 mm² · caída ≤ 1,5 %) hasta el ICP y el cuadro. <span class="itc">ITC-BT-12</span> <span class="itc">ITC-BT-13</span> <span class="itc">ITC-BT-15</span>`),
     draw(c, sim, multi) {
       const fu = c.state.fundido;
-      const kw = sim ? fmtNum(r2(sim.totalP / 1000)) : '0';
+      const p = sim ? (sim.pMedida && sim.pMedida[c.id] != null ? sim.pMedida[c.id] : sim.totalP) : 0;
+      const kw = fmtNum(r2(p / 1000));
       if (multi) {
         let s = `<rect x="6" y="10" width="120" height="90" rx="5" fill="#fff" stroke="#3a4352" stroke-width="1.4" stroke-dasharray="6 4"/>
         <line x1="44" y1="0" x2="44" y2="20" stroke="#3a4352" stroke-width="2"/>
@@ -497,11 +500,204 @@ Object.assign(DEFS, {
 });
 
 /* ==================================================================
+   EDIFICIO — centralización de contadores (ITC-BT-12 esquema 2.2.1)
+   ================================================================== */
+const EMB_ROWS = [['a', 'L', 14, '#7a4a21'], ['b', 'L2', 38, '#2b2b2e'], ['c', 'L3', 62, '#8f959c'], ['n', 'N', 86, '#2e6fd0']];
+const embTerms = [];
+for (const [p, kind, y] of EMB_ROWS)
+  for (let i = 1; i <= 5; i++) embTerms.push({ id: p + i, x: 16 + (i - 1) * 32, y, kind, lbl: '' });
+
+Object.assign(DEFS, {
+
+  cgp3: {
+    nombre: 'CGP trifásica · Caja General de Protección', corto: 'CGP 3~',
+    w: 156, h: 96, din: false, unico: true,
+    terms: [
+      { id: 'L1i', x: 30, y: 0, kind: 'L', lbl: 'L1' }, { id: 'L2i', x: 62, y: 0, kind: 'L2', lbl: 'L2' },
+      { id: 'L3i', x: 94, y: 0, kind: 'L3', lbl: 'L3' }, { id: 'Ni', x: 126, y: 0, kind: 'N', lbl: 'N' },
+      { id: 'L1o', x: 30, y: 96, kind: 'L', lbl: 'L1' }, { id: 'L2o', x: 62, y: 96, kind: 'L2', lbl: 'L2' },
+      { id: 'L3o', x: 94, y: 96, kind: 'L3', lbl: 'L3' }, { id: 'No', x: 126, y: 96, kind: 'N', lbl: 'N' }
+    ],
+    props: () => ({ fusible: 100 }), state: () => ({ fundido: false }), act: 'tecla',
+    onAct(c) { if (c.state.fundido) { c.state.fundido = false; toast('Fusibles de la CGP sustituidos'); } else toast('Los fusibles de la CGP están en buen estado'); },
+    links(c, o) {
+      const l = [['Ni', 'No']];
+      if (o.allClosed || !c.state.fundido) l.push(['L1i', 'L1o'], ['L2i', 'L2o'], ['L3i', 'L3o']);
+      return l;
+    },
+    ficha: fichaTxt(`Frontera del edificio con la red: aloja un <b>fusible por fase</b> (el neutro es seccionable, sin fusible). De ella parte la <b>LGA</b> hacia la centralización de contadores. Si un corto no lo despeja nada aguas abajo, se funden y hay que sustituirlos (tócala). <span class="itc">ITC-BT-13</span>`),
+    draw(c, sim, multi) {
+      const fu = c.state.fundido;
+      if (multi) {
+        let s = `<rect x="6" y="10" width="144" height="76" rx="5" fill="#fff" stroke="#3a4352" stroke-width="1.4" stroke-dasharray="6 4"/>`;
+        for (const x of [30, 62, 94]) {
+          s += `<line x1="${x}" y1="0" x2="${x}" y2="24" stroke="#3a4352" stroke-width="2"/>
+          <rect x="${x - 6}" y="24" width="12" height="30" fill="${fu ? '#f6d7d2' : '#fff'}" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2"/>
+          <line x1="${x}" y1="24" x2="${x}" y2="54" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2" ${fu ? 'stroke-dasharray="3 4"' : ''}/>
+          <line x1="${x}" y1="54" x2="${x}" y2="96" stroke="#3a4352" stroke-width="2"/>`;
+        }
+        s += `<line x1="126" y1="0" x2="126" y2="96" stroke="#3a4352" stroke-width="2"/>
+        <text x="78" y="76" font-size="9" fill="#242b36" text-anchor="middle" font-weight="700">CGP 3~</text>
+        <rect data-act="tecla" data-comp="${c.id}" x="8" y="12" width="140" height="70" fill="rgba(0,0,0,0)"/>`;
+        return s;
+      }
+      let s = `
+      <rect x="4" y="8" width="148" height="80" rx="8" fill="#4a5261" stroke="#333a46" stroke-width="1.6"/>
+      <rect x="12" y="16" width="132" height="52" rx="5" fill="#5b6473"/>`;
+      for (const x of [22, 56, 90]) {
+        s += `<rect x="${x}" y="24" width="16" height="36" rx="3" fill="${fu ? '#3a3f49' : '#c9cfd8'}" stroke="#2c313a"/>
+        <text x="${x + 8}" y="46" font-size="8" fill="${fu ? '#e5533d' : '#4a5261'}" text-anchor="middle" font-weight="800">${fu ? '✕' : c.props.fusible}</text>`;
+      }
+      s += `<rect x="124" y="24" width="12" height="36" rx="3" fill="#8f97a4" stroke="#2c313a"/>
+      <text x="78" y="82" font-size="9" fill="#c9cfd8" text-anchor="middle" font-weight="700">CGP 3~ · FUSIBLES</text>`;
+      if (fu) s += `<g class="tripmark"><circle cx="144" cy="14" r="7" fill="#e5533d"/><text x="144" y="17" font-size="9" fill="#fff" text-anchor="middle" font-weight="800">!</text></g>`;
+      s += `<rect data-act="tecla" data-comp="${c.id}" x="8" y="12" width="140" height="70" fill="rgba(0,0,0,0)"/>`;
+      return s;
+    }
+  },
+
+  igm: {
+    nombre: 'IGM · Interruptor General de Maniobra', corto: 'IGM',
+    w: 96, h: 104, din: false, unico: false,
+    terms: [
+      { id: 'L1i', x: 18, y: 0, kind: 'L', lbl: 'L1' }, { id: 'L2i', x: 38, y: 0, kind: 'L2', lbl: 'L2' },
+      { id: 'L3i', x: 58, y: 0, kind: 'L3', lbl: 'L3' }, { id: 'Ni', x: 78, y: 0, kind: 'N', lbl: 'N' },
+      { id: 'L1o', x: 18, y: 104, kind: 'L', lbl: 'L1' }, { id: 'L2o', x: 38, y: 104, kind: 'L2', lbl: 'L2' },
+      { id: 'L3o', x: 58, y: 104, kind: 'L3', lbl: 'L3' }, { id: 'No', x: 78, y: 104, kind: 'N', lbl: 'N' }
+    ],
+    props: () => ({ calibre: 160 }), state: () => ({ on: false }), act: 'palanca',
+    links(c, o) {
+      return (o.allClosed || c.state.on)
+        ? [['L1i', 'L1o'], ['L2i', 'L2o'], ['L3i', 'L3o'], ['Ni', 'No']] : [];
+    },
+    ficha: fichaTxt(`Cabecera de la <b>centralización de contadores</b>: interruptor de corte <b>manual</b> en carga (no es una protección, no dispara solo). Calibre mínimo <b>160 A</b> hasta 90 kW de previsión, 250 A hasta 150 kW. Tras él, el embarrado reparte a los fusibles de seguridad de cada usuario. <span class="itc">ITC-BT-16</span>`),
+    fichaExtra: (c, inst) => inst ? `<div class="shRow"><label>Calibre</label>${chipProp(c, 'calibre', [160, 250], v => v + ' A')}</div>` : '',
+    draw(c, sim, multi) {
+      const on = c.state.on;
+      if (multi) {
+        let s = `<rect x="1" y="1" width="94" height="102" rx="4" fill="#fff" stroke="#3a4352" stroke-width="1.4"/>`;
+        for (const x of [18, 38, 58, 78]) {
+          s += `<line x1="${x}" y1="0" x2="${x}" y2="26" stroke="#3a4352" stroke-width="2"/>
+                <line x1="${x}" y1="66" x2="${x}" y2="104" stroke="#3a4352" stroke-width="2"/>
+                <circle cx="${x}" cy="28" r="2.6" fill="#3a4352"/>`;
+          s += on ? `<line x1="${x}" y1="28" x2="${x}" y2="66" stroke="#2f9e57" stroke-width="2.4"/>`
+                  : `<line x1="${x}" y1="28" x2="${x + 10}" y2="60" stroke="#3a4352" stroke-width="2.4"/>`;
+        }
+        s += `<line x1="18" y1="45" x2="78" y2="45" stroke="#8b93a1" stroke-width="1.4" stroke-dasharray="3 3"/>
+        <text x="48" y="88" font-size="9" fill="#242b36" text-anchor="middle" font-weight="700">IGM ${c.props.calibre} A</text>
+        <rect data-act="palanca" data-comp="${c.id}" x="6" y="22" width="84" height="50" fill="rgba(0,0,0,0)"/>`;
+        return s;
+      }
+      const leverY = on ? 30 : 54;
+      const s = `
+      <rect x="2" y="9" width="92" height="86" rx="6" fill="#e9e4d8" stroke="#b8b0a0" stroke-width="1.2"/>
+      <rect x="5" y="13" width="86" height="10" rx="2" fill="#d4cec0"/>
+      <rect x="5" y="81" width="86" height="10" rx="2" fill="#d4cec0"/>
+      <rect x="30" y="26" width="36" height="52" rx="4" fill="#dcd6c8" stroke="#b8b0a0"/>
+      <rect class="lever" x="39" y="${leverY}" width="18" height="18" rx="3.5" fill="${on ? '#2f3540' : '#5a6270'}" stroke="#20252d"/>
+      <text x="48" y="${on ? 74 : 38}" font-size="8" fill="#7a7261" text-anchor="middle" font-weight="700">${on ? 'I' : '0'}</text>
+      <text x="48" y="92" font-size="8.5" fill="#5c5648" text-anchor="middle" font-weight="700">IGM ${c.props.calibre} A</text>
+      <rect data-act="palanca" data-comp="${c.id}" x="24" y="22" width="48" height="58" fill="rgba(0,0,0,0)"/>`;
+      return s;
+    }
+  },
+
+  fusi: {
+    nombre: 'Fusible de seguridad', corto: 'Fusible',
+    w: 48, h: 88, din: false,
+    terms: [
+      { id: 'in', x: 24, y: 0, kind: 'L', lbl: '' },
+      { id: 'out', x: 24, y: 88, kind: 'L', lbl: '' }
+    ],
+    props: () => ({ calibre: 63 }), state: () => ({ fundido: false }), act: 'tecla',
+    onAct(c) { if (c.state.fundido) { c.state.fundido = false; toast('Fusible de seguridad sustituido'); } else toast('El fusible está en buen estado'); },
+    links(c, o) { return (o.allClosed || !c.state.fundido) ? [['in', 'out']] : []; },
+    ficha: fichaTxt(`Cada derivación individual arranca de su <b>fusible de seguridad</b> en la centralización (unidad funcional de protección): protege la DI y permite trabajar en el contador sin tensión. Se coloca en la <b>fase</b>, antes del contador. <span class="itc">ITC-BT-16</span>`),
+    fichaExtra: (c, inst) => inst ? `<div class="shRow"><label>Calibre</label>${chipProp(c, 'calibre', [40, 63, 80], v => v + ' A')}</div>` : '',
+    draw(c, sim, multi) {
+      const fu = c.state.fundido;
+      if (multi) return `
+        <line x1="24" y1="0" x2="24" y2="22" stroke="#3a4352" stroke-width="2"/>
+        <rect x="17" y="22" width="14" height="42" fill="${fu ? '#f6d7d2' : '#fff'}" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2"/>
+        <line x1="24" y1="22" x2="24" y2="64" stroke="${fu ? '#e5533d' : '#3a4352'}" stroke-width="2" ${fu ? 'stroke-dasharray="3 4"' : ''}/>
+        <line x1="24" y1="64" x2="24" y2="88" stroke="#3a4352" stroke-width="2"/>
+        <text x="24" y="80" font-size="8" fill="#242b36" text-anchor="middle" font-weight="700">${c.props.calibre} A</text>
+        <rect data-act="tecla" data-comp="${c.id}" x="8" y="16" width="32" height="54" fill="rgba(0,0,0,0)"/>`;
+      return `
+        <rect x="14" y="14" width="20" height="10" rx="2" fill="url(#gMetal)" stroke="#8b93a1"/>
+        <rect x="14" y="64" width="20" height="10" rx="2" fill="url(#gMetal)" stroke="#8b93a1"/>
+        <rect x="16" y="24" width="16" height="40" rx="3" fill="${fu ? '#6d5a55' : '#d8cdb8'}" stroke="#9a8f78"/>
+        <text x="24" y="47" font-size="8" fill="${fu ? '#ffb3a6' : '#6d6350'}" text-anchor="middle" font-weight="800">${fu ? '✕' : c.props.calibre}</text>
+        ${fu ? `<g class="tripmark"><circle cx="40" cy="16" r="6.5" fill="#e5533d"/><text x="40" y="19" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="800">!</text></g>` : ''}
+        <rect data-act="tecla" data-comp="${c.id}" x="8" y="12" width="32" height="64" fill="rgba(0,0,0,0)"/>`;
+    }
+  },
+
+  embarrado: {
+    nombre: 'Embarrado de la centralización', corto: 'Embarrado',
+    w: 160, h: 96, din: false,
+    terms: embTerms,
+    props: () => ({}), state: () => ({}),
+    links() {
+      const l = [];
+      for (const [p] of EMB_ROWS) for (let i = 1; i < 5; i++) l.push([p + i, p + (i + 1)]);
+      return l;
+    },
+    ficha: fichaTxt(`Pletinas de la centralización: reparten <b>L1, L2, L3 y N</b> del IGM a las unidades funcionales (fusible + contador) de cada usuario. Reparte las viviendas <b>entre las tres fases</b> para equilibrar la red. Los bornes de cada barra están unidos entre sí. <span class="itc">ITC-BT-16</span>`),
+    draw(c, sim, multi) {
+      let s = multi ? '' : `<rect x="0" y="2" width="160" height="92" rx="6" fill="#f2f3f5" stroke="#c4cad3"/>`;
+      for (const [p, kind, y, col] of EMB_ROWS) {
+        s += `<rect x="6" y="${y - 4}" width="148" height="8" rx="3" fill="${col}" ${multi ? 'opacity=".85"' : ''}/>`;
+      }
+      return s;
+    }
+  },
+
+  cvivienda: {
+    nombre: 'Cuadro de vivienda (resumen)', corto: 'Vivienda',
+    w: 120, h: 104, din: false, load: true,
+    terms: [
+      { id: 'L', x: 30, y: 0, kind: 'L', lbl: 'L' },
+      { id: 'N', x: 60, y: 0, kind: 'N', lbl: 'N' },
+      { id: 'PE', x: 90, y: 0, kind: 'PE', lbl: 'PE' }
+    ],
+    props: () => ({ potencia: 2300, fp: 1 }), state: () => ({ on: true }), act: 'tecla',
+    onAct(c) { c.state.on = !c.state.on; },
+    ficha: fichaTxt(`Representa una <b>vivienda completa</b> (su ICP, IGA, diferencial y circuitos, resumidos): consume la potencia ajustada cuando su interruptor general está subido. Su <b>derivación individual</b> debe traerle fase, neutro y <b>tierra</b>. Tócala para conectarla o desconectarla. <span class="itc">ITC-BT-15</span> <span class="itc">ITC-BT-26</span>`),
+    fichaExtra: (c, inst) => inst ? `<div class="shRow"><label>Demanda</label>${chipProp(c, 'potencia', [575, 1150, 2300, 3450, 5750], v => v + ' W')}</div>` : '',
+    draw(c, sim, multi) {
+      const on = sim && sim.lit[c.id];
+      const armado = c.state.on;
+      if (multi) return `
+        <line x1="30" y1="0" x2="30" y2="30" stroke="#3a4352" stroke-width="2"/>
+        <line x1="60" y1="0" x2="60" y2="30" stroke="#3a4352" stroke-width="2"/>
+        <line x1="90" y1="0" x2="90" y2="30" stroke="#3f9b3f" stroke-width="2"/>
+        <rect x="16" y="30" width="88" height="52" fill="${on ? '#fff8e1' : '#fff'}" stroke="#3a4352" stroke-width="1.8"/>
+        <text x="60" y="50" font-size="9" fill="#242b36" text-anchor="middle" font-weight="700">VIVIENDA</text>
+        <text x="60" y="63" font-size="8" fill="#6b7482" text-anchor="middle">${armado ? c.props.potencia + ' W' : 'desconectada'}</text>
+        <text x="60" y="75" font-size="7.5" fill="${on ? '#2f9e57' : '#6b7482'}" text-anchor="middle" font-weight="700">${on ? 'CON TENSIÓN' : 'sin tensión'}</text>
+        <rect data-act="tecla" data-comp="${c.id}" x="18" y="32" width="84" height="48" fill="rgba(0,0,0,0)"/>`;
+      return `
+        <path d="M12 46 L60 16 L108 46 z" fill="#b06c3b" stroke="#8a5228"/>
+        <rect x="20" y="46" width="80" height="52" rx="3" fill="#f2ede2" stroke="#c9c0ad"/>
+        <rect x="30" y="56" width="18" height="16" rx="2" fill="${on ? '#ffe27a' : '#3d4552'}" stroke="#9a917d"/>
+        <rect x="72" y="56" width="18" height="16" rx="2" fill="${on ? '#ffe27a' : '#3d4552'}" stroke="#9a917d"/>
+        <rect x="52" y="70" width="16" height="28" rx="1.5" fill="#7c6a4f"/>
+        <rect x="26" y="80" width="14" height="12" rx="2" fill="${armado ? '#2f9e57' : '#8f97a4'}"/>
+        <text x="33" y="89" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="800">${armado ? 'I' : '0'}</text>
+        <text x="60" y="104" font-size="8.5" fill="#4a5261" text-anchor="middle" font-weight="700">${c.props.potencia} W</text>
+        <rect data-act="tecla" data-comp="${c.id}" x="20" y="46" width="80" height="52" fill="rgba(0,0,0,0)"/>`;
+    }
+  }
+});
+
+/* ==================================================================
    PALETA POR CATEGORÍAS
    ================================================================== */
 const PAL_CATS = [
   { id: 'cuadro', n: 'Cuadro y tierra', items: ['iga', 'dif', 'pia', 'borne', 'pica'] },
   { id: 'enlace', n: 'Enlace', items: ['red', 'red3', 'cpm', 'cgp', 'contador', 'icp'] },
+  { id: 'edificio', n: 'Edificio', items: ['cgp3', 'igm', 'embarrado', 'fusi', 'contador', 'cvivienda'] },
   { id: 'maniobras', n: 'Maniobras', items: ['int', 'conm', 'cruz', 'puls', 'tele', 'minut', 'presencia', 'crepus', 'prog'] },
   { id: 'receptores', n: 'Receptores', items: ['luz', 'toma', 'timbre', 'motor', 'motor3'] }
 ];
@@ -534,6 +730,30 @@ function ordenEnlaceOK() {
   if (!cgp || !cont) return false;
   return fed(cgp, 'Li') && fed(cont, 'Li') && fed(icp, 'Li') &&
     cortaA(cgp, cont, 'Li') && cortaA(cont, icp, 'Li') && (!iga || cortaA(icp, iga, 'Li'));
+}
+
+/* qué esquema de la ITC-BT-12 se deduce del montaje actual */
+function esquemaDetectado() {
+  const igms = S.comps.filter(c => c.type === 'igm').length;
+  const conts = S.comps.filter(c => c.type === 'contador').length;
+  if (S.comps.some(c => c.type === 'cpm')) return '2.1';
+  if (igms >= 2) return '2.2.2';
+  if (igms >= 1 && conts >= 2) return '2.2.1';
+  if (conts >= 1) return '2.1';
+  return null;
+}
+
+function esquemaModal() {
+  const ops = [
+    ['', 'Sin declarar', 'El boletín no comprobará el esquema'],
+    ['2.1', '2.1 · Un solo usuario', 'CPM (fusibles + contador), sin LGA'],
+    ['2.2.1', '2.2.1 · Centralización en un lugar', 'CGP → LGA → IGM + contadores → DI por vivienda'],
+    ['2.2.2', '2.2.2 · Centralización en más de un lugar', 'Varias centralizaciones parciales (una por planta)']
+  ];
+  openModal(`<div class="mTitle">Esquema de enlace · ITC-BT-12</div>
+    <div class="help"><p>Declara el esquema que estás ejecutando y el boletín comprobará que el montaje se corresponde. Detectado ahora: <b>${esquemaDetectado() || 'ninguno'}</b>.</p></div>` +
+    ops.map(([v, t, d]) => `<button class="mItem" data-m="esquemaSel" data-id="${v}">
+      <div>${t}<small>${d}</small></div>${(S.esquema || '') === v ? '<span class="din">✓</span>' : ''}</button>`).join(''));
 }
 
 function emitirBoletin() {
@@ -593,9 +813,20 @@ function emitirBoletin() {
              : 'Instalación de enlace completa y en orden: acometida → CGP → contador → ICP → IGA', 'ITC-BT-12 a ITC-BT-17');
   }
 
-  if (SIM.di) {
-    add(SIM.di.smin >= DI_SEC_MIN && SIM.di.pct <= DI_CAIDA_SIN_LGA,
-      `Derivación individual: sección ≥ ${DI_SEC_MIN} mm² y caída ≤ ${fmtNum(DI_CAIDA_SIN_LGA)} % (actual: ${fmtSec(SIM.di.smin)} mm² · ${fmtNum(SIM.di.pct)} %)`, 'ITC-BT-15');
+  if (SIM.dis && SIM.dis.length) {
+    add(SIM.dis.every(d => d.smin >= DI_SEC_MIN && d.pct <= d.lim),
+      `Derivaciones individuales: sección ≥ ${DI_SEC_MIN} mm² y caída dentro de límite (1,5 % sin LGA · 1 % con centralización)`, 'ITC-BT-15');
+  }
+
+  if (SIM.lga) {
+    add(SIM.lga.smin >= LGA_SEC_MIN && SIM.lga.pct <= SIM.lga.lim,
+      `LGA: sección ≥ ${LGA_SEC_MIN} mm² y caída ≤ ${fmtNum(SIM.lga.lim)} % (actual: ${fmtSec(SIM.lga.smin)} mm² · ${fmtNum(SIM.lga.pct)} %)`, 'ITC-BT-14');
+  }
+
+  if (S.esquema) {
+    const det = esquemaDetectado();
+    add(det === S.esquema,
+      `El montaje se corresponde con el esquema declarado ${S.esquema} (detectado: ${det || 'ninguno'})`, 'ITC-BT-12');
   }
 
   const conforme = items.every(i => i.ok);
@@ -684,6 +915,47 @@ function montarChalet() {
   mkWire(toma, 'PE', borne, 'p1', 'tierra', 2.5);
   mkWire(borne, 'p3', pica, 'PE', 'tierra', 2.5);
   return { red, cpm, icp, iga, dif, pia1, pia2, int1, luz, toma, borne, pica, diF, diN };
+}
+
+/* edificio de referencia: esquema 2.2.1 con 3 viviendas repartidas por fases */
+function montarEdificio() {
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  const red = mkComp('red3', 290, 8);
+  const cgp = mkComp('cgp3', 70, 130);
+  const igm = mkComp('igm', 90, 300, null, { on: true });
+  const emb = mkComp('embarrado', 300, 304);
+  const fusis = [], conts = [], vivs = [];
+  const fases = [['a', 'marron'], ['b', 'negro'], ['c', 'gris']];
+  for (let k = 0; k < 3; k++) {
+    const bx = 100 + k * 230;
+    const fu = mkComp('fusi', bx + 30, 470);
+    const co = mkComp('contador', bx, 580);
+    const vi = mkComp('cvivienda', bx, 740);
+    fusis.push(fu); conts.push(co); vivs.push(vi);
+  }
+  const borne = mkComp('borne', 330, 920);
+  const pica = mkComp('pica', 160, 960);
+  /* acometida */
+  mkWire(red, 'L1', cgp, 'L1i', 'marron', 25); mkWire(red, 'L2', cgp, 'L2i', 'negro', 25);
+  mkWire(red, 'L3', cgp, 'L3i', 'gris', 25); mkWire(red, 'N', cgp, 'Ni', 'azul', 25);
+  /* LGA */
+  mkWire(cgp, 'L1o', igm, 'L1i', 'marron', 16); mkWire(cgp, 'L2o', igm, 'L2i', 'negro', 16);
+  mkWire(cgp, 'L3o', igm, 'L3i', 'gris', 16); mkWire(cgp, 'No', igm, 'Ni', 'azul', 16);
+  /* IGM → embarrado */
+  mkWire(igm, 'L1o', emb, 'a1', 'marron', 16); mkWire(igm, 'L2o', emb, 'b1', 'negro', 16);
+  mkWire(igm, 'L3o', emb, 'c1', 'gris', 16); mkWire(igm, 'No', emb, 'n1', 'azul', 16);
+  /* unidades funcionales + DI, una fase por vivienda */
+  for (let k = 0; k < 3; k++) {
+    const [fila, color] = fases[k];
+    mkWire(emb, fila + (k + 2), fusis[k], 'in', color, 10);
+    mkWire(fusis[k], 'out', conts[k], 'Li', color, 10);
+    mkWire(emb, 'n' + (k + 2), conts[k], 'Ni', 'azul', 10);
+    mkWire(conts[k], 'Lo', vivs[k], 'L', color, 10);
+    mkWire(conts[k], 'No', vivs[k], 'N', 'azul', 10);
+    mkWire(vivs[k], 'PE', borne, 'p' + (k + 1), 'tierra', 10);
+  }
+  mkWire(borne, 'p5', pica, 'PE', 'tierra', 16);
+  return { red, cgp, igm, emb, fusis, conts, vivs, borne, pica };
 }
 
 function quitarCable(compId, term) {
@@ -782,6 +1054,18 @@ const AVERIAS = [
       const t = tomaOK(); if (t !== true) return t;
       const l = luzOK(); if (l !== true) return l;
       if (hayErrores()) return 'El defecto sigue en el tramo de enlace: mide la sección de la derivación individual.';
+      return true;
+    }
+  },
+  {
+    id: 'a7', t: 'El segundo, sin luz',
+    s: 'En un edificio de tres viviendas, la del medio se ha quedado completamente sin suministro. Las otras dos funcionan, y el vecino jura que su cuadro está intacto. Busca en las zonas comunes.',
+    build() { const m = montarEdificio(); m.fusis[1].state.fundido = true; },
+    check() {
+      const vivs = S.comps.filter(c => c.type === 'cvivienda');
+      const ev = pureEval();
+      if (!vivs.length || !vivs.every(v => ev.lit[v.id])) return 'Alguna vivienda sigue sin tensión: repasa su camino desde el embarrado.';
+      if (hayErrores()) return 'Queda algún defecto en la instalación.';
       return true;
     }
   }
@@ -919,6 +1203,31 @@ RETOS.push(
       if (!S.comps.some(c => c.type === 'luz' && ev.lit[c.id])) return 'Termina con un punto de luz encendido.';
       if (!SIM.di) return 'No se detecta la derivación individual: cablea CPM → ICP.';
       if (SIM.di.smin < DI_SEC_MIN) return 'La derivación individual debe ser de 6 mm² como mínimo (toca sus cables y cambia la sección).';
+      if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
+      return true;
+    }
+  },
+  {
+    id: 'r10', t: 'Edificio: contadores centralizados', modo: 'instalador',
+    desc: 'Esquema 2.2.1 (ITC-BT-12): <b>Red 3~ → CGP trifásica → LGA → IGM → embarrado</b> y, por cada vivienda, <b>fusible de seguridad → contador → DI con tierra</b> (pestaña Edificio). Monta <b>3 viviendas con tensión, cada una en una fase distinta</b>, con LGA de 10 mm² o más.',
+    check() {
+      if (S.mode === 'aprendiz') return 'Cambia a modo Instalador.';
+      const falta = ['red3', 'cgp3', 'igm', 'embarrado'].filter(t => !S.comps.some(c => c.type === t));
+      if (falta.length) return 'Falta por montar: ' + falta.map(t => DEFS[t].corto).join(', ') + ' (pestaña Edificio).';
+      const vivs = S.comps.filter(c => c.type === 'cvivienda');
+      if (vivs.length < 3) return 'Monta al menos 3 cuadros de vivienda.';
+      if (S.comps.filter(c => c.type === 'contador').length < 3) return 'Cada vivienda necesita su contador en la centralización.';
+      if (S.comps.filter(c => c.type === 'fusi').length < 3) return 'Cada derivación lleva su fusible de seguridad antes del contador.';
+      const ev = pureEval();
+      const vivas = vivs.filter(v => ev.lit[v.id]);
+      if (vivas.length < 3) return 'Las 3 viviendas deben quedar con tensión (IGM y sus interruptores subidos).';
+      const sup = getSupply();
+      const pot = buildUF({ allClosed: true });
+      const phs = sup.phases.map(t => pot.f(K(sup.comp.id, t)));
+      const fases = new Set(vivas.map(v => phs.indexOf(pot.f(K(v.id, 'L')))).filter(i => i >= 0));
+      if (fases.size < 3) return 'Reparte las viviendas: cada una debe colgar de una fase distinta (L1, L2 y L3).';
+      if (!SIM.lga) return 'No se detecta la LGA: debe ir de la CGP trifásica al IGM.';
+      if (SIM.lga.smin < LGA_SEC_MIN) return 'La LGA debe ser de 10 mm² como mínimo (toca sus cables y cambia la sección).';
       if (hayErrores()) return 'Quedan fallos en el panel de resultados: corrígelos.';
       return true;
     }

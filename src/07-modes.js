@@ -142,7 +142,7 @@ $('#btnRetoCheck').addEventListener('click', () => {
    GUARDAR / CARGAR
    ================================================================== */
 function serialize() {
-  return JSON.stringify({ v: 2, mode: S.mode, view: S.view, comps: S.comps, wires: S.wires, nextId: S.nextId, cam: S.cam, noche: !!S.noche });
+  return JSON.stringify({ v: 2, mode: S.mode, view: S.view, comps: S.comps, wires: S.wires, nextId: S.nextId, cam: S.cam, noche: !!S.noche, esquema: S.esquema || null });
 }
 function deserialize(str) {
   try {
@@ -167,6 +167,7 @@ function deserialize(str) {
     }
     S.nextId = Math.max(Number(d.nextId) || 1, maxId + 1);
     S.noche = !!d.noche;
+    S.esquema = ['2.1', '2.2.1', '2.2.2'].includes(d.esquema) ? d.esquema : null;
     S.mode = ['instalador', 'reglamento'].includes(d.mode) ? d.mode : 'aprendiz';
     S.view = d.view === 'multifilar' ? 'multifilar' : 'realista';
     if (d.cam && typeof d.cam.s === 'number') S.cam = { tx: d.cam.tx || 0, ty: d.cam.ty || 0, s: clamp(d.cam.s, 0.3, 3.2) };
@@ -186,6 +187,7 @@ function menuModal() {
     <button class="mItem" data-m="averias"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z" fill="none" stroke="#e5533d" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.2" stroke="#e5533d" stroke-width="2" stroke-linecap="round"/></svg></span><div>Modo Avería<small>Te genera un montaje con un fallo oculto: encuéntralo</small></div></button>
     <button class="mItem" data-m="montajes"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z M8 4v5h7V4 M8 20v-6h8v6" fill="none" stroke="#4d8dee" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Mis montajes<small>Guardar y cargar (funciona sin conexión)</small></div></button>
     <button class="mItem" data-m="tabla"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 10h16 M4 15h16 M10 5v14" fill="none" stroke="#37c26e" stroke-width="2"/></svg></span><div>Tabla REBT<small>Circuitos C1–C5, secciones y calibres (ITC-BT-25)</small></div></button>
+    <button class="mItem" data-m="esquema"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3v5M12 8H6v4M12 8h6v4M6 16v-4M18 16v-4M12 12v9" fill="none" stroke="#c98ae5" stroke-width="2" stroke-linecap="round"/></svg></span><div>Esquema de enlace<small>Declarar 2.1 / 2.2.1 / 2.2.2 (ITC-BT-12)${S.esquema ? ' · actual: ' + S.esquema : ''}</small></div></button>
     <button class="mItem" data-m="ayuda"><span class="mi-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#8fa0b5" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 1.9m0 2.9v.2" fill="none" stroke="#8fa0b5" stroke-width="2" stroke-linecap="round"/></svg></span><div>Cómo se usa<small>Gestos, cableado y modos</small></div></button>
     <button class="mItem" data-m="nuevo"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#e5533d" stroke-width="2.4" stroke-linecap="round"/></svg></span><div>Nuevo montaje<small>Vaciar el lienzo y empezar de cero</small></div></button>`);
 }
@@ -261,6 +263,8 @@ modalBody.addEventListener('click', e => {
   else if (m === 'averia') startAveria(id);
   else if (m === 'montajes') montajesModal();
   else if (m === 'tabla') tablaModal();
+  else if (m === 'esquema') esquemaModal();
+  else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
   else if (m === 'ayuda') ayudaModal();
   else if (m === 'nuevo') confirmNuevo();
   else if (m === 'nuevoSi') { nuevoMontaje(); closeModal(); }

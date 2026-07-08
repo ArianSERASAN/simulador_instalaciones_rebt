@@ -14,22 +14,25 @@ function screenToWorld(cx, cy) {
 
 function renderBG() {
   const multi = S.view === 'multifilar';
+  /* en montajes de edificio sin aparatos DIN, el cuadro de vivienda solo estorba */
+  const sinCuadro = !S.comps.some(c => defOf(c).din) &&
+    S.comps.some(c => ['cgp3', 'igm', 'embarrado', 'cvivienda', 'fusi'].includes(c.type));
   if (multi) {
     bgG.innerHTML = `
       <rect x="-2000" y="-2000" width="4800" height="5200" fill="#fdfdfb"/>
-      <rect x="-2000" y="-2000" width="4800" height="5200" fill="url(#pGrid)"/>
+      <rect x="-2000" y="-2000" width="4800" height="5200" fill="url(#pGrid)"/>` + (sinCuadro ? '' : `
       <rect x="${CUADRO.x}" y="${CUADRO.y}" width="${CUADRO.w}" height="${CUADRO.h}" rx="10"
             fill="none" stroke="#b9c0ca" stroke-width="1.6" stroke-dasharray="8 6"/>
-      <text x="${CUADRO.x + 12}" y="${CUADRO.y + 22}" font-size="12" fill="#8b93a1" font-weight="700">CUADRO GENERAL DE MANDO Y PROTECCIÓN</text>`;
+      <text x="${CUADRO.x + 12}" y="${CUADRO.y + 22}" font-size="12" fill="#8b93a1" font-weight="700">CUADRO GENERAL DE MANDO Y PROTECCIÓN</text>`);
     return;
   }
   bgG.innerHTML = `
-    <rect x="-2000" y="-2000" width="4800" height="5200" fill="#e8ebef"/>
+    <rect x="-2000" y="-2000" width="4800" height="5200" fill="#e8ebef"/>` + (sinCuadro ? '' : `
     <rect x="${CUADRO.x}" y="${CUADRO.y}" width="${CUADRO.w}" height="${CUADRO.h}" rx="12"
           fill="#f6f7f9" stroke="#c3cad3" stroke-width="2"/>
     <rect x="${CUADRO.x + 8}" y="${CUADRO.y + 8}" width="${CUADRO.w - 16}" height="24" rx="6" fill="#e4e8ed"/>
     <text x="${CUADRO.x + 16}" y="${CUADRO.y + 25}" font-size="12" fill="#6b7482" font-weight="700">CUADRO GENERAL DE MANDO Y PROTECCIÓN</text>
-    <rect x="${CUADRO.x + 14}" y="${RAIL_CY - 14}" width="${CUADRO.w - 28}" height="28" fill="url(#pRail)" stroke="#8b93a1"/>`;
+    <rect x="${CUADRO.x + 14}" y="${RAIL_CY - 14}" width="${CUADRO.w - 28}" height="28" fill="url(#pRail)" stroke="#8b93a1"/>`);
 }
 
 function wireEnds(w) {

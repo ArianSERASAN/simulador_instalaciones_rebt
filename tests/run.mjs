@@ -399,6 +399,114 @@ const TESTS = [
     update();
     const v = a.check();
     return v === true ? null : 'tras reparar debería validar, dice: ' + v;
+  })],
+
+  /* ---------- Fase 3: centralización de contadores ---------- */
+
+  ['edificio de referencia: 3 viviendas con tensión, LGA y DI correctas', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    S.mode = 'instalador';
+    update();
+    for (const v of m.vivs) if (!SIM.lit[v.id]) return 'todas las viviendas deberían tener tensión';
+    if (!SIM.lga) return 'debería detectarse la LGA';
+    if (SIM.lga.smin !== 16) return 'la LGA del edificio es de 16 mm², se detectó ' + SIM.lga.smin;
+    if (SIM.lga.lim !== 0.5) return 'con una sola centralización el límite de la LGA es 0,5 %';
+    if (SIM.dis.length !== 3) return 'deberían detectarse 3 derivaciones individuales, hay ' + SIM.dis.length;
+    if (!SIM.dis.every(d => d.lim === 1)) return 'con centralización, el límite de las DI es 1 %';
+    if (__t.msgs('err').length) return 'errores inesperados: ' + __t.msgs('err').join(' | ');
+    if (esquemaDetectado() !== '2.2.1') return 'el esquema detectado debería ser 2.2.1, es ' + esquemaDetectado();
+    return null;
+  })],
+
+  ['edificio: cada contador mide solo su vivienda', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    m.vivs[0].props.potencia = 5750;
+    m.vivs[1].props.potencia = 1150;
+    m.vivs[2].state.on = false;
+    update();
+    if (SIM.pMedida[m.conts[0].id] !== 5750) return 'el contador 1 debería medir 5750 W';
+    if (SIM.pMedida[m.conts[1].id] !== 1150) return 'el contador 2 debería medir 1150 W';
+    if (SIM.pMedida[m.conts[2].id] !== 0) return 'el contador 3 debería medir 0 W (vivienda desconectada)';
+    return null;
+  })],
+
+  ['edificio: LGA de sección insuficiente avisa (ITC-BT-14)', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    S.mode = 'instalador';
+    for (const w of S.wires) if (w.sec === 16 && w.a.c === m.cgp.id) w.sec = 6;
+    update();
+    return __t.hasMsg('err', 'línea general de alimentación') ? null : 'falta el error de sección de la LGA';
+  })],
+
+  ['edificio: todas las viviendas en la misma fase avisa de desequilibrio', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    // mover las derivaciones de las viviendas 2 y 3 a la fila L1 del embarrado
+    for (const w of S.wires) {
+      if (w.b.c === m.fusis[1].id && w.a.c === m.emb.id) w.a.t = 'a3';
+      if (w.b.c === m.fusis[2].id && w.a.c === m.emb.id) w.a.t = 'a4';
+    }
+    update();
+    return __t.hasMsg('warn', 'MISMA fase') ? null : 'falta el aviso de reparto de fases';
+  })],
+
+  ['edificio: corto en una DI funde solo su fusible de seguridad', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    mkWire(m.conts[1], 'Lo', m.conts[1], 'No', 'negro', 10);   // corto tras el contador 2
+    update();
+    if (!m.fusis[1].state.fundido) return 'debería fundirse el fusible de la vivienda 2';
+    if (m.fusis[0].state.fundido || m.fusis[2].state.fundido) return 'los demás fusibles deben sobrevivir';
+    if (m.cgp.state.fundido) return 'la CGP no debería fundirse (selectividad)';
+    if (!SIM.lit[m.vivs[0].id] || !SIM.lit[m.vivs[2].id]) return 'las otras viviendas deben seguir con tensión';
+    return null;
+  })],
+
+  ['edificio: sin IGM avisa la centralización', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    // puentear y eliminar el IGM
+    S.wires = S.wires.filter(w => w.a.c !== m.igm.id && w.b.c !== m.igm.id);
+    S.comps = S.comps.filter(c => c.id !== m.igm.id);
+    mkWire(m.cgp, 'L1o', m.emb, 'a1', 'marron', 16); mkWire(m.cgp, 'L2o', m.emb, 'b1', 'negro', 16);
+    mkWire(m.cgp, 'L3o', m.emb, 'c1', 'gris', 16); mkWire(m.cgp, 'No', m.emb, 'n1', 'azul', 16);
+    update();
+    return __t.hasMsg('warn', 'IGM') ? null : 'falta el aviso de IGM en cabecera';
+  })],
+
+  ['edificio: vivienda sin tierra en su DI da error', async page => page.evaluate(() => {
+    __t.reset();
+    const m = montarEdificio();
+    S.wires = S.wires.filter(w => !(w.a.c === m.vivs[0].id && w.a.t === 'PE') && !(w.b.c === m.vivs[0].id && w.b.t === 'PE'));
+    update();
+    return __t.hasMsg('err', 'conductor de protección') ? null : 'falta el error de tierra en la DI';
+  })],
+
+  ['avería a7 (fusible de seguridad fundido): se detecta y se repara', async page => page.evaluate(() => {
+    __t.reset();
+    const a = AVERIAS.find(x => x.id === 'a7');
+    a.build();
+    update();
+    if (a.check() === true) return 'no debería validar con el fusible fundido';
+    const fu = S.comps.find(c => c.type === 'fusi' && c.state.fundido);
+    if (!fu) return 'debería haber un fusible fundido oculto';
+    fu.state.fundido = false;
+    update();
+    const v = a.check();
+    return v === true ? null : 'tras sustituir el fusible debería validar, dice: ' + v;
+  })],
+
+  ['reto r10: el edificio de referencia lo supera', async page => page.evaluate(() => {
+    __t.reset();
+    montarEdificio();
+    S.mode = 'instalador';
+    update();
+    const r = RETOS.find(x => x.id === 'r10');
+    const v = r.check();
+    return v === true ? null : 'el edificio de referencia debería superar el reto: ' + v;
   })]
 ];
 

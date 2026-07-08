@@ -6,7 +6,7 @@
 function simulate() {
   const msgs = [];
   const res = { msgs, lit: {}, vlit: {}, tomas: {}, liveW: {}, circuits: [], difConTension: {}, sinRed: false, fault: null,
-    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true, di: null };
+    totalP: 0, totalI: 0, coloresMal: 0, igaOK: true, di: null, dis: [], lga: null, pMedida: {} };
   const sup = getSupply();
   const picas = S.comps.filter(c => c.type === 'pica');
   const inst = S.mode !== 'aprendiz';
@@ -31,10 +31,10 @@ function simulate() {
       const termsSum = [...sup.phases, 'N'];
       const tA = termsSum[corto.i], tB = termsSum[corto.j];
       const esFF = corto.faseFase;
-      const orden = { pia: 0, iga: 1, icp: 2, cgp: 3, cpm: 3 };   // selectividad
+      const orden = { pia: 0, iga: 1, icp: 2, fusi: 3, cgp: 4, cpm: 4, cgp3: 4 };   // selectividad
       const cands = S.comps.filter(c =>
         ((c.type === 'pia' || c.type === 'iga' || c.type === 'icp') && c.state.on && !c.state.trip) ||
-        ((c.type === 'cgp' || c.type === 'cpm') && !c.state.fundido))
+        ((c.type === 'cgp' || c.type === 'cpm' || c.type === 'cgp3' || c.type === 'fusi') && !c.state.fundido))
         .sort((a, b) => orden[a.type] - orden[b.type]);
       let disp = null;
       for (const c of cands) {
@@ -43,7 +43,10 @@ function simulate() {
       }
       const donde = esFF ? `¡Cortocircuito entre dos fases (${V_LL} V)!` : '¡Cortocircuito! Fase y neutro se tocan sin pasar por ningún receptor.';
       if (disp) {
-        if (disp.type === 'cgp' || disp.type === 'cpm') {
+        if (disp.type === 'fusi') {
+          disp.state.fundido = true;
+          msgs.push({ lvl: 'err', txt: `${donde} Se ha fundido el fusible de seguridad de esa derivación: corrige el cableado y sustitúyelo (tócalo).`, itc: 'ITC-BT-16 · ITC-BT-22' });
+        } else if (disp.type === 'cgp' || disp.type === 'cpm' || disp.type === 'cgp3') {
           disp.state.fundido = true;
           msgs.push({ lvl: 'err', txt: `${donde} Se han fundido los fusibles de la ${disp.type === 'cpm' ? 'CPM' : 'CGP'}: corrige el cableado y sustitúyelos (tócala).`, itc: 'ITC-BT-13 · ITC-BT-22' });
         } else {
@@ -302,40 +305,124 @@ function simulate() {
     if (n > 5) msgs.push({ lvl: 'err', txt: `Hay ${n} circuitos colgando de un solo diferencial: el máximo es 5. Añade otro ID de 30 mA y reparte.`, itc: 'ITC-BT-25' });
   }
 
-  /* --- derivación individual (ITC-BT-15) ---
-     tramo entre el equipo de medida (CPM o contador) y el primer
-     dispositivo general (ICP, o IGA si no hay ICP): cables que quedan
-     sin fase al abrir la medida pero la conservan al abrir el DG. */
-  const medida = S.comps.find(c => c.type === 'cpm') || S.comps.find(c => c.type === 'contador');
-  const dg = S.comps.find(c => c.type === 'icp') || S.comps.find(c => c.type === 'iga');
-  if (sup && medida && dg && !potCorto) {
-    const tM = buildUF({ allClosed: true, open: { [medida.id]: true } });
-    const tD = buildUF({ allClosed: true, open: { [dg.id]: true } });
-    const tMR = supRoots(tM, sup), tDR = supRoots(tD, sup);
-    const diF = [], diN = [];
+  /* --- enlace: LGA, derivaciones individuales y centralización ---
+     Un tramo «aguas abajo de X hasta Y» son los cables que pierden su
+     conductor potencial al abrir X pero lo conservan al abrir Y. */
+  const cgpAny = S.comps.find(c => c.type === 'cgp3' || c.type === 'cgp');
+  const igms = S.comps.filter(c => c.type === 'igm');
+  const conLGA = !!(cgpAny && igms.length);
+
+  const caeCon = (tOpen, tR, cid, term) => {
+    const nb = pot.f(K(cid, term));
+    const i = potR.phs.indexOf(nb);
+    if (i >= 0) return tOpen.f(K(cid, term)) !== tR.phs[i];
+    if (nb === potR.nu) return tOpen.f(K(cid, term)) !== tR.nu;
+    return false;
+  };
+  const tramoAguasAbajo = (desde, hasta) => {
+    const tM = buildUF({ allClosed: true, open: { [desde.id]: true } });
+    const tMR = supRoots(tM, sup);
+    const tD = hasta ? buildUF({ allClosed: true, open: { [hasta.id]: true } }) : null;
+    const tDR = hasta ? supRoots(tD, sup) : null;
+    const wF = [], wN = [];
     for (const w of S.wires) {
       const kb = K(w.a.c, w.a.t);
       const nb = pot.f(kb);
       const i = potR.phs.indexOf(nb);
-      if (i >= 0) {
-        if (tM.f(kb) !== tMR.phs[i] && tD.f(kb) === tDR.phs[i]) diF.push(w);
-      } else if (nb === potR.nu) {
-        if (tM.f(kb) !== tMR.nu && tD.f(kb) === tDR.nu) diN.push(w);
+      const esFase = i >= 0, esNeutro = nb === potR.nu;
+      if (!esFase && !esNeutro) continue;
+      if (!(esFase ? tM.f(kb) !== tMR.phs[i] : tM.f(kb) !== tMR.nu)) continue;
+      if (tD && (esFase ? tD.f(kb) !== tDR.phs[i] : tD.f(kb) !== tDR.nu)) continue;
+      (esFase ? wF : wN).push(w);
+    }
+    let P = 0, I = 0;
+    for (const c of S.comps) {
+      const d = defOf(c);
+      const esToma = c.type === 'toma';
+      const enMarcha = esToma
+        ? (res.tomas[c.id] && res.tomas[c.id].tension && c.props.carga > 0)
+        : ((c.type === 'luz' || d.load || d.load3) && res.lit[c.id]);
+      if (!enMarcha) continue;
+      const terms = d.load3 ? ['L1', 'L2', 'L3'] : ['L'];
+      if (!terms.some(tm => caeCon(tM, tMR, c.id, tm))) continue;
+      P += esToma ? c.props.carga : c.props.potencia;
+      I += esToma ? c.props.carga / (V_RED * (c.props.fp || 1)) : iReceptor(c);
+    }
+    return { wF, wN, P, I };
+  };
+
+  if (sup && !potCorto) {
+    const medidas = [...S.comps.filter(c => c.type === 'cpm'), ...S.comps.filter(c => c.type === 'contador')];
+    const dgs = [...S.comps.filter(c => c.type === 'icp'), ...S.comps.filter(c => c.type === 'iga')];
+
+    /* derivaciones individuales (ITC-BT-15) y potencia por equipo de medida */
+    for (const medida of medidas) {
+      const total = tramoAguasAbajo(medida, null);
+      res.pMedida[medida.id] = total.P;
+      const tM = buildUF({ allClosed: true, open: { [medida.id]: true } });
+      const tMR = supRoots(tM, sup);
+      const dg = dgs.find(d2 => caeCon(tM, tMR, d2.id, 'Li'));
+      const tr = dg ? tramoAguasAbajo(medida, dg) : total;
+      if (!tr.wF.length) continue;
+      const smin = Math.min(...[...tr.wF, ...tr.wN].map(w => w.sec));
+      const lf = tr.wF.reduce((a, w) => a + w.len, 0);
+      const pct = r2(((2 * RHO_CU * lf * total.I) / smin) / V_RED * 100);
+      const lim = conLGA ? DI_CAIDA_CON_LGA : DI_CAIDA_SIN_LGA;
+      res.dis.push({ smin, pct, lf, lim });
+      if (inst && smin < DI_SEC_MIN) {
+        msgs.push({ lvl: 'err', txt: `Una derivación individual tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15' });
+      }
+      if (inst && pct > lim) {
+        msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en una derivación individual (máximo ${fmtNum(lim)} % ${conLGA ? 'con contadores centralizados' : 'para un solo usuario sin LGA'}): aumenta la sección o acorta el tramo.`, itc: 'ITC-BT-15' });
       }
     }
-    if (diF.length) {
-      const secs = [...diF, ...diN].map(w => w.sec);
-      const smin = Math.min(...secs);
-      const lf = diF.reduce((a, w) => a + w.len, 0);
-      const caida = (2 * RHO_CU * lf * res.totalI) / smin;
-      const pct = r2(caida / V_RED * 100);
-      res.di = { smin, pct, lf };
-      if (inst && smin < DI_SEC_MIN) {
-        msgs.push({ lvl: 'err', txt: `La derivación individual (${medida.type === 'cpm' ? 'CPM' : 'contador'} → ${dg.type === 'icp' ? 'ICP' : 'IGA'}) tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${DI_SEC_MIN} mm².`, itc: 'ITC-BT-15' });
+    res.di = res.dis[0] || null;
+
+    /* LGA (ITC-BT-14): tramo CGP → IGM */
+    if (conLGA) {
+      const tr = tramoAguasAbajo(cgpAny, igms[0]);
+      if (tr.wF.length) {
+        const smin = Math.min(...[...tr.wF, ...tr.wN].map(w => w.sec));
+        const lf = tr.wF.reduce((a, w) => a + w.len, 0) / sup.phases.length;   // longitud por fase
+        const iFases = demandaPorFase(uf, fl, sup);
+        const iMax = Math.max(...iFases, 0);
+        const lim = igms.length > 1 ? LGA_CAIDA_PARCIAL : LGA_CAIDA_UNICA;
+        const caida = sup.tri ? (Math.sqrt(3) * RHO_CU * lf * iMax) / smin : (2 * RHO_CU * lf * iMax) / smin;
+        const pct = r2(caida / (sup.tri ? V_LL : V_RED) * 100);
+        res.lga = { smin, pct, lim };
+        if (inst && smin < LGA_SEC_MIN) msgs.push({ lvl: 'err', txt: `La línea general de alimentación tiene tramos de ${fmtSec(smin)} mm²: la sección mínima es ${LGA_SEC_MIN} mm² en cobre.`, itc: 'ITC-BT-14' });
+        if (inst && pct > lim) msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la LGA (máximo ${fmtNum(lim)} % hacia ${igms.length > 1 ? 'centralizaciones parciales' : 'una centralización única'}): aumenta la sección.`, itc: 'ITC-BT-14' });
       }
-      if (inst && pct > DI_CAIDA_SIN_LGA) {
-        msgs.push({ lvl: 'err', txt: `Caída de tensión del ${fmtNum(pct)} % en la derivación individual (máximo ${fmtNum(DI_CAIDA_SIN_LGA)} % para un solo usuario sin LGA): aumenta la sección o acorta el tramo.`, itc: 'ITC-BT-15' });
+    }
+
+    /* centralización sin IGM en cabecera */
+    const hayCentral = S.comps.some(c => c.type === 'fusi' || c.type === 'cvivienda') ||
+      S.comps.filter(c => c.type === 'contador').length >= 2;
+    if (hayCentral && !igms.length) {
+      msgs.push({ lvl: 'warn', txt: 'Una centralización de contadores lleva en cabecera un Interruptor General de Maniobra (IGM): 160 A hasta 90 kW de previsión.', itc: 'ITC-BT-16' });
+    }
+
+    /* reparto de fases entre viviendas */
+    if (sup.tri) {
+      const vivs = S.comps.filter(c => c.type === 'cvivienda');
+      const idx = vivs.map(v => potR.phs.indexOf(pot.f(K(v.id, 'L')))).filter(i => i >= 0);
+      if (idx.length >= 2 && new Set(idx).size === 1) {
+        msgs.push({ lvl: 'warn', txt: 'Todas las viviendas cuelgan de la MISMA fase: reparte las derivaciones individuales entre L1, L2 y L3 para equilibrar la red.', itc: 'ITC-BT-16' });
       }
+      const iFases = demandaPorFase(uf, fl, sup);
+      if (iFases.length === 3 && Math.max(...iFases) - Math.min(...iFases) > 15) {
+        msgs.push({ lvl: 'warn', txt: `Fases desequilibradas: L1 ${fmtNum(r1(iFases[0]))} A · L2 ${fmtNum(r1(iFases[1]))} A · L3 ${fmtNum(r1(iFases[2]))} A. Reparte mejor las cargas.`, itc: 'ITC-BT-16' });
+      }
+    }
+  }
+
+  /* --- viviendas compactas: la DI lleva también la tierra --- */
+  for (const c of S.comps.filter(c => c.type === 'cvivienda')) {
+    if (!sup) break;
+    const conn = S.wires.some(w => w.a.c === c.id || w.b.c === c.id);
+    if (!conn) { msgs.push({ lvl: 'info', txt: 'Hay un cuadro de vivienda sin conectar: su derivación individual lleva fase, neutro y tierra.' }); continue; }
+    if (!earthSet.has(uf.f(K(c.id, 'PE')))) {
+      msgs.push({ lvl: 'err', txt: 'A una vivienda no le llega el conductor de protección: la derivación individual lleva fase, neutro Y tierra (verde-amarillo).', itc: 'ITC-BT-15 · ITC-BT-26' });
     }
   }
 
