@@ -1070,6 +1070,46 @@ const TESTS = [
     return null;
   })],
 
+  ['un reto empieza con lienzo vacío y al salir vuelve tu montaje', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    montarVivienda(); mkComp('luz', 600, 760); update();   // montaje del usuario: 2 luces
+    startReto('r1'); closeModal();
+    if (S.comps.length !== 0) return 'el reto debería empezar con el lienzo vacío, hay ' + S.comps.length;
+    if (S.reto !== 'r1') return 'el reto debería quedar activo';
+    if (!store.get('rebt.antes')) return 'debería guardarse el montaje del usuario';
+    exitReto();
+    if (S.reto || store.get('rebt.antes')) return 'al salir no debe quedar reto ni copia';
+    return S.comps.filter(c => c.type === 'luz').length === 2 ? null : 'al salir debería volver el montaje con 2 luces';
+  })],
+
+  ['reto superado: guarda el montaje del reto y restaura el tuyo', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    const saves0 = getSaves(); delete saves0['Reto: La primera luz']; store.set('rebt.saves', JSON.stringify(saves0));
+    montarVivienda(); mkComp('luz', 600, 760); update();
+    startReto('r1'); closeModal();
+    montarVivienda();            // la solución del reto (válida para r1)
+    update();
+    document.getElementById('btnRetoCheck').click();
+    closeModal();
+    if (S.reto) return 'el reto debería cerrarse al superarse';
+    if (!retosDone().r1) return 'debería quedar marcado como superado';
+    if (!getSaves()['Reto: La primera luz']) return 'el montaje del reto debería guardarse en Mis montajes';
+    return S.comps.filter(c => c.type === 'luz').length === 2 ? null : 'tras superar el reto debería volver tu montaje';
+  })],
+
+  ['un reto de laboratorio abre el lab con lienzo limpio y lo restaura', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    startReto('rl1'); closeModal();
+    if (!S.lab) return 'rl1 debería abrir el laboratorio';
+    if (S.comps.length !== 0) return 'el lienzo del reto debería estar vacío';
+    mkComp('pila', 100, 100); update();
+    exitReto();
+    if (!S.lab) return 'al salir seguimos en el laboratorio (con su contenido anterior)';
+    if (S.reto) return 'el reto debería quedar cerrado';
+    toggleLab(false);
+    return null;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();

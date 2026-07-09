@@ -107,26 +107,33 @@ function retosDone() { try { return JSON.parse(store.get('rebt.retos') || '{}') 
 function startReto(id) {
   const r = RETOS.find(r => r.id === id);
   if (!r) return;
-  if (S.averia) exitReto();          // salir de la avería restaurando el montaje
-  S.reto = id; S.averia = null; S.averiaGen = null;
+  if (S.reto || S.averia) exitReto();   // salir del ejercicio anterior restaurando el montaje
+  /* situarse en el espacio del reto ANTES de guardar la copia del usuario */
   if (r.modo === 'lab') { if (!S.lab) toggleLab(true); }
   else {
     if (S.lab) toggleLab(false);
     if (r.modo && S.mode !== r.modo) setMode(r.modo);
   }
+  store.set('rebt.antes', serialize());  // conservar el montaje del usuario
+  S.reto = id; S.averia = null; S.averiaGen = null;
+  /* lienzo limpio: el reto es un modo aparte */
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  histClear();
   $('#retoBar').classList.add('on');
   $('#retoTitle').textContent = r.t;
   closeModal(); closeSheet();
-  openModal(`<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p></div>
+  fitCamera(); update(); buildPalette();
+  openModal(`<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p>
+    <p>Empiezas con el lienzo vacío; tu montaje anterior volverá al salir del reto.</p></div>
     <button class="bigbtn pri" data-m="cerrar">Al lío</button>`);
 }
 /* salir del ejercicio: si era una avería (que sustituyó el lienzo),
    se restaura el montaje que el usuario tenía antes de empezar */
 function exitReto() {
-  const eraAveria = !!S.averia;
+  const habia = !!(S.reto || S.averia);
   S.reto = null; S.averia = null; S.averiaGen = null;
   $('#retoBar').classList.remove('on');
-  if (eraAveria) {
+  if (habia) {
     const antes = store.get('rebt.antes');
     store.del('rebt.antes');
     if (antes && deserialize(antes)) { aplicarModoVista(); buildPalette(); fitCamera(); }
@@ -167,8 +174,12 @@ $('#btnRetoCheck').addEventListener('click', () => {
   if (v === true) {
     const done = retosDone(); done[r.id] = true;
     store.set('rebt.retos', JSON.stringify(done));
+    /* conservar el montaje del reto en Mis montajes y restaurar el del usuario */
+    const saves = getSaves();
+    saves['Reto: ' + r.t] = { fecha: new Date().toLocaleString('es-ES'), data: serialize() };
+    store.set('rebt.saves', JSON.stringify(saves));
     openModal(`<div class="mTitle">Reto superado</div><div class="help">
-      <p><b>${esc(r.t)}</b> completado. Este montaje cumple lo que se pedía: puedes guardarlo desde el menú o pasar al siguiente reto.</p></div>
+      <p><b>${esc(r.t)}</b> completado. El montaje del reto queda guardado en <b>Mis montajes</b> («Reto: ${esc(r.t)}») y tu montaje anterior se ha restaurado.</p></div>
       <button class="bigbtn grn" data-m="retos">Ver más retos</button>
       <div style="height:8px"></div>
       <button class="bigbtn sec" data-m="cerrar">Seguir montando</button>`);

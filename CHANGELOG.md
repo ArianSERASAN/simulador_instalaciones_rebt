@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [v2.1.2] — Los retos también son un modo aparte
+
+### Cambiado
+- **Empezar un reto ahora da un lienzo limpio**: tu montaje se guarda solo y
+  **se restaura al salir del reto** (con la ✕) o al superarlo. Antes el reto
+  se montaba encima de lo que tuvieras.
+- Al **superar un reto**, su montaje queda guardado automáticamente en
+  **Mis montajes** («Reto: nombre del reto») antes de restaurar el tuyo.
+- Los retos de laboratorio hacen lo mismo dentro del espacio del laboratorio.
+- Caché SW `rebt-v21`.
+
 ## [v2.1.1] — Aislamiento de modos
 
 ### Cambiado — Fase 14: cada modo funciona por su cuenta
