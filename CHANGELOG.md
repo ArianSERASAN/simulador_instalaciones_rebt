@@ -4,6 +4,30 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 Cada versión estable tiene su etiqueta git (`git tag`); para volver atrás:
 `git checkout vX.Y.Z`.
 
+## [v2.2.0] — Pistas, ejemplos y nueva imagen
+
+### Añadido — Fase 15
+- **Retos con pistas**: cada uno de los 18 retos tiene **3 pistas
+  escalonadas** (de la orientación a la casi-solución). Se piden desde el
+  enunciado, que ahora se **reabre tocando el título del reto** en la barra
+  superior. El **motivo del último fallo al comprobar queda guardado** y
+  visible en el enunciado, y el cuadro de fallo ofrece «Ver una pista».
+  «Tu progreso» distingue retos superados **sin pistas / con pistas**.
+- Durante un reto, los errores del panel **ya no revelan la solución
+  completa** (para eso están las pistas); al salir del reto vuelven.
+- Tocar el título durante una **avería** reabre el parte de síntomas.
+- **Instalaciones de ejemplo** (menú): 8 montajes correctos y comentados
+  para cargar y estudiar — vivienda C1+C2, chalet con CPM, edificio 2.2.1,
+  edificio por plantas 2.2.2, conmutada con cruzamiento, telerruptor con 3
+  pulsadores, baño ITC-BT-27 y laboratorio en paralelo con medidores. Con
+  deshacer para volver a tu montaje.
+- **Imagen nueva**: icono del PWA rediseñado (cuadro eléctrico + rayo, en
+  vectorial con rasterizados a 512 y 180 px) y **cabecera ilustrada** en el
+  menú (SVG de 3,6 KB, offline). Los conceptos se exploraron con Higgsfield;
+  el arte final se ejecutó en vectorial propio porque la política de red del
+  entorno no permite descargar los renders al repositorio.
+- 6 escenarios nuevos en `tests/run.mjs` (85 en total). Caché SW `rebt-v22`.
+
 ## [v2.1.2] — Los retos también son un modo aparte
 
 ### Cambiado

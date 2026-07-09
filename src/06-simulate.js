@@ -617,7 +617,8 @@ function renderResults() {
 function msgsHTML(msgs) {
   let h = '';
   msgs.forEach((m, i) => {
-    const acc = !!(m.fix || m.hl);
+    /* durante un reto no se regalan las soluciones: para eso están las pistas */
+    const acc = !!(m.fix || m.hl) && !S.reto;
     const abierto = acc && S.msgOpen === i;
     h += `<div class="msg ${m.lvl}${acc ? ' acc' : ''}"${acc ? ` data-mi="${i}"` : ''}><span class="mdot"></span><div>
       ${esc(m.txt)}${m.itc ? `<span class="itc">${esc(m.itc)}</span>` : ''}

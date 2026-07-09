@@ -1,10 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
-  <rect width="180" height="180" rx="40" fill="#141a23"/>
-  <rect x="30" y="52" width="120" height="20" rx="4" fill="#3a4256"/>
-  <rect x="42" y="40" width="26" height="44" rx="5" fill="#e9edf2"/>
-  <rect x="51" y="52" width="8" height="14" rx="2" fill="#2f3540"/>
-  <rect x="74" y="40" width="26" height="44" rx="5" fill="#e9edf2"/>
-  <rect x="83" y="52" width="8" height="14" rx="2" fill="#2f3540"/>
-  <path d="M124 96 L102 138 h16 l-12 34 30 -44 h-16 l16 -32 z" fill="#f4b942"/>
-  <path d="M55 84 v28 a14 14 0 0 0 28 0 v-14" fill="none" stroke="#2e6fd0" stroke-width="9" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e2836"/><stop offset="1" stop-color="#0f141c"/>
+    </linearGradient>
+    <linearGradient id="ray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe27a"/><stop offset="0.55" stop-color="#f4b942"/><stop offset="1" stop-color="#e8930f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.62" cy="0.4" r="0.75">
+      <stop offset="0" stop-color="#f4b942" stop-opacity="0.16"/><stop offset="1" stop-color="#f4b942" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="104" fill="url(#glow)"/>
+  <!-- cuadro eléctrico -->
+  <g>
+    <rect x="104" y="148" width="304" height="218" rx="24" fill="#e9edf2"/>
+    <rect x="104" y="148" width="304" height="44" rx="24" fill="#cfd7e0"/>
+    <rect x="104" y="170" width="304" height="22" fill="#cfd7e0"/>
+    <circle cx="132" cy="170" r="7" fill="#8fa0b3"/>
+    <circle cx="380" cy="170" r="7" fill="#8fa0b3"/>
+    <!-- carril DIN -->
+    <rect x="128" y="252" width="256" height="16" rx="4" fill="#98a5b3"/>
+    <!-- tres magnetotérmicos -->
+    <g>
+      <rect x="142" y="216" width="60" height="104" rx="10" fill="#f8fafc" stroke="#b6c0cb" stroke-width="4"/>
+      <rect x="160" y="244" width="24" height="30" rx="6" fill="#2c3542"/>
+      <rect x="154" y="294" width="36" height="10" rx="4" fill="#3f9b4f"/>
+      <rect x="226" y="216" width="60" height="104" rx="10" fill="#f8fafc" stroke="#b6c0cb" stroke-width="4"/>
+      <rect x="244" y="244" width="24" height="30" rx="6" fill="#2c3542"/>
+      <rect x="238" y="294" width="36" height="10" rx="4" fill="#3f9b4f"/>
+      <rect x="310" y="216" width="60" height="104" rx="10" fill="#f8fafc" stroke="#b6c0cb" stroke-width="4"/>
+      <rect x="328" y="258" width="24" height="30" rx="6" fill="#5a6270"/>
+      <rect x="322" y="294" width="36" height="10" rx="4" fill="#d84a3a"/>
+    </g>
+  </g>
+  <!-- rayo -->
+  <path d="M352 52 L240 252 h56 L200 462 372 232 h-60 L424 52 Z"
+        fill="#0f141c" opacity="0.35" transform="translate(10 10)"/>
+  <path d="M352 52 L240 252 h56 L200 462 372 232 h-60 L424 52 Z"
+        fill="url(#ray)" stroke="#b97f13" stroke-width="8" stroke-linejoin="round"/>
 </svg>

@@ -266,12 +266,13 @@ function proyectoCalcular() {
 function progresoModal() {
   const rd = retosDone(), ad = averiasDone(), ag = averiasGenDone(), ex = examStats();
   const okR = RETOS.filter(r => rd[r.id]).length;
+  const okSin = RETOS.filter(r => rd[r.id] === 1 || rd[r.id] === true).length;   // true = superados antiguos
   const okA = AVERIAS.filter(a => ad[a.id]).length;
   const gen = (ag[1] || 0) + (ag[2] || 0) + (ag[3] || 0);
   const bar = (ok, tot) => `<div class="pbar"><div style="width:${tot ? Math.round(ok / tot * 100) : 0}%"></div></div>`;
   const linea = (t, ok, tot, extra) => `<div class="pline"><div class="plt"><span>${t}</span><b>${ok}${tot != null ? ' / ' + tot : ''}</b></div>${tot != null ? bar(ok, tot) : ''}${extra ? `<small>${extra}</small>` : ''}</div>`;
   openModal(`<div class="mTitle">Tu progreso</div>
-    ${linea('Retos guiados', okR, RETOS.length)}
+    ${linea('Retos guiados', okR, RETOS.length, okR ? `${okSin} sin pistas · ${okR - okSin} con pistas` : '')}
     ${linea('Averías fijas', okA, AVERIAS.length)}
     ${linea('Averías generadas resueltas', gen, null, `nivel 1: ${ag[1] || 0} · nivel 2: ${ag[2] || 0} · nivel 3: ${ag[3] || 0}`)}
     ${linea('Exámenes hechos', ex.intentos, null, `mejor nota: ${ex.record}/10 · falladas pendientes: ${ex.falladas.length}`)}

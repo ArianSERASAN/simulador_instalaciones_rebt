@@ -1110,6 +1110,80 @@ const TESTS = [
     return null;
   })],
 
+  /* ---------- Fase 15: pistas, ejemplos y retos sin soluciones ---------- */
+
+  ['todos los retos tienen 3 pistas y se registran al usarlas', async page => page.evaluate(() => {
+    for (const r of RETOS) {
+      const p = RETO_PISTAS[r.id];
+      if (!p || p.length !== 3) return 'el reto ' + r.id + ' debería tener 3 pistas';
+      if (p.some(x => !x || x.length < 20)) return 'pistas demasiado cortas en ' + r.id;
+    }
+    __t.reset(); histClear();
+    startReto('r1'); closeModal();
+    S.retoPistas = 1;                       // el usuario pidió una pista
+    montarVivienda(); update();             // solución válida
+    document.getElementById('btnRetoCheck').click();
+    closeModal();
+    if (retosDone().r1 !== 2) return 'superado con pistas debería registrarse como 2, es ' + retosDone().r1;
+    store.set('rebt.retos', '{}');
+    return null;
+  })],
+
+  ['durante un reto los errores no muestran la solución', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    startReto('r3'); closeModal();
+    const m = montarVivienda();
+    S.wires = S.wires.filter(w => !(w.a.c === m.toma.id && w.a.t === 'PE') && !(w.b.c === m.toma.id && w.b.t === 'PE'));
+    update();
+    const html = msgsHTML(SIM.msgs);
+    if (html.includes('data-mi')) return 'en reto los mensajes no deben ser tocables (sin soluciones)';
+    exitReto();
+    update();
+    if (!msgsHTML(SIM.msgs) && SIM.msgs.length) return 'fuera del reto vuelven las soluciones';
+    return null;
+  })],
+
+  ['el feedback de comprobación queda guardado y accesible', async page => page.evaluate(() => {
+    __t.reset(); histClear();
+    startReto('r1'); closeModal();
+    document.getElementById('btnRetoCheck').click();   // falla: lienzo vacío
+    if (!S.retoFeedback || S.retoFeedback.length < 10) return 'el motivo del fallo debería guardarse';
+    closeModal();
+    retoInfoModal();
+    const html = document.getElementById('modalBody').innerHTML;
+    closeModal(); exitReto();
+    if (!html.includes('Última comprobación')) return 'el enunciado debería mostrar la última comprobación';
+    if (!html.includes('Ver pista 1 de 3')) return 'el enunciado debería ofrecer la primera pista';
+    return null;
+  })],
+
+  ['los 8 ejemplos cargan sin errores y funcionando', async page => page.evaluate(() => {
+    for (const ej of EJEMPLOS) {
+      __t.reset(); histClear();
+      if (!!ej.lab !== S.lab) S.lab = !!ej.lab;
+      ej.build();
+      update();
+      if (__t.msgs('err').length) return `el ejemplo «${ej.t}» tiene errores: ` + __t.msgs('err').join(' | ');
+      const algoVivo = Object.values(SIM.lit || {}).some(Boolean) ||
+        Object.values(SIM.tomas || {}).some(t => t.tension);
+      if (!algoVivo) return `el ejemplo «${ej.t}» debería tener algo funcionando`;
+    }
+    __t.reset();
+    return null;
+  })],
+
+  ['los recursos visuales existen y se precachean', async page => page.evaluate(async () => {
+    for (const f of ['banner.svg', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png']) {
+      const r = await fetch(f);
+      if (!r.ok) return f + ' debería existir';
+      const b = await r.blob();
+      if (b.size < 500) return f + ' parece vacío (' + b.size + ' bytes)';
+    }
+    const sw = await (await fetch('sw.js')).text();
+    if (!sw.includes('banner.svg') || !sw.includes('icon-512.png')) return 'los recursos nuevos deben precachearse en sw.js';
+    return null;
+  })],
+
   ['lab · toggleLab conserva los dos espacios', async page => page.evaluate(() => {
     __t.reset();
     const m = montarVivienda();

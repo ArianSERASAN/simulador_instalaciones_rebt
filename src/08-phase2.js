@@ -1052,6 +1052,111 @@ function montarEdificio2() {
   return { red, cgp, igms, embs, fusis, conts, vivs, borne, pica };
 }
 
+/* ---------- montajes de ejemplo adicionales ---------- */
+function cuadroBase() {
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  const red = mkComp('red', 334, 24);
+  const iga = mkComp('iga', 80, DIN_Y, { calibre: 25 }, { on: true });
+  const dif = mkComp('dif', 175, DIN_Y, {}, { on: true });
+  const pia1 = mkComp('pia', 270, DIN_Y, { calibre: 10, circuito: 'C1' }, { on: true });
+  mkWire(red, 'L', iga, 'Li', 'marron', 6); mkWire(red, 'N', iga, 'Ni', 'azul', 6);
+  mkWire(iga, 'Lo', dif, 'Li', 'marron', 6); mkWire(iga, 'No', dif, 'Ni', 'azul', 6);
+  mkWire(dif, 'Lo', pia1, 'Li', 'marron', 1.5); mkWire(dif, 'No', pia1, 'Ni', 'azul', 1.5);
+  return { red, iga, dif, pia1 };
+}
+function montarConmutada3() {
+  const m = cuadroBase();
+  const c1 = mkComp('conm', 90, 560);
+  const cruz = mkComp('cruz', 230, 560);
+  const c2 = mkComp('conm', 370, 560);
+  const luz = mkComp('luz', 520, 600);
+  mkWire(m.pia1, 'Lo', c1, 'c', 'marron', 1.5);
+  mkWire(c1, 'l1', cruz, 'l1', 'negro', 1.5); mkWire(c1, 'l2', cruz, 'l2', 'negro', 1.5);
+  mkWire(cruz, 'l3', c2, 'l1', 'negro', 1.5); mkWire(cruz, 'l4', c2, 'l2', 'negro', 1.5);
+  mkWire(c2, 'c', luz, 'L', 'negro', 1.5);
+  mkWire(m.pia1, 'No', luz, 'N', 'azul', 1.5);
+  return m;
+}
+function montarTelerruptor() {
+  const m = cuadroBase();
+  const tele = mkComp('tele', 430, DIN_Y, null, { latch: true });
+  const luz = mkComp('luz', 560, 600);
+  const px = [90, 210, 330];
+  px.forEach(x => {
+    const p = mkComp('puls', x, 560);
+    mkWire(m.pia1, 'Lo', p, 'p', 'marron', 1.5);
+    mkWire(p, 's', tele, 'A1', 'negro', 1.5);
+  });
+  mkWire(m.pia1, 'No', tele, 'A2', 'azul', 1.5);
+  mkWire(m.pia1, 'Lo', tele, 'in', 'marron', 1.5);
+  mkWire(tele, 'out', luz, 'L', 'negro', 1.5);
+  mkWire(m.pia1, 'No', luz, 'N', 'azul', 1.5);
+  return m;
+}
+function montarBanoOK() {
+  const m = montarVivienda();
+  mkComp('banera', 60, 500);
+  m.int1.x = 362; m.int1.y = 520;
+  m.toma.x = 354; m.toma.y = 680;
+  return m;
+}
+function montarLabParalelo() {
+  S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
+  const pila = mkComp('pila', 120, 140, { v: 4.5 });
+  const sw = mkComp('int', 300, 140, null, { on: true });
+  const amp = mkComp('amperimetro', 470, 140);
+  const b1 = mkComp('bombilla', 200, 380, { vn: 3.5, wn: 1 });
+  const b2 = mkComp('bombilla', 400, 380, { vn: 3.5, wn: 1 });
+  const vm = mkComp('voltimetro', 580, 380);
+  mkWire(pila, 'p', sw, 'p', 'negro'); mkWire(sw, 's', amp, 'a', 'negro');
+  mkWire(amp, 'b', b1, 'a', 'negro'); mkWire(amp, 'b', b2, 'a', 'negro');
+  mkWire(b1, 'b', pila, 'm', 'negro'); mkWire(b2, 'b', pila, 'm', 'negro');
+  mkWire(vm, 'a', b2, 'a', 'negro'); mkWire(vm, 'b', b2, 'b', 'negro');
+}
+
+/* ==================================================================
+   INSTALACIONES DE EJEMPLO — galería para cargar y estudiar
+   ================================================================== */
+const EJEMPLOS = [
+  { id: 'vivienda', t: 'Vivienda: C1 + C2', modo: 'instalador', build: montarVivienda,
+    d: 'La instalación interior mínima: IGA en cabecera, diferencial de 30 mA y dos circuitos — C1 (luz con su interruptor, 1,5 mm²) y C2 (toma con tierra, 2,5 mm²) — más la puesta a tierra con borne principal y pica.' },
+  { id: 'chalet', t: 'Chalet con CPM (esquema 2.1)', modo: 'instalador', build: montarChalet,
+    d: 'Enlace para un solo usuario: la CPM reúne fusibles y contador, y de ella sale la derivación individual (10 mm²) hasta el ICP y el cuadro. Toca los cables del tramo CPM→ICP para ver la DI, y el contador para ver su potencia.' },
+  { id: 'edificio', t: 'Edificio: centralización única (2.2.1)', modo: 'instalador', build: montarEdificio,
+    d: 'Red trifásica → CGP 3~ → LGA → IGM → embarrado, y por cada vivienda: fusible de seguridad → contador → derivación individual con tierra. Las tres viviendas van repartidas entre L1, L2 y L3. Baja el IGM para dejar el edificio entero sin tensión.' },
+  { id: 'plantas', t: 'Edificio por plantas (2.2.2)', modo: 'instalador', build: montarEdificio2,
+    d: 'La misma LGA se bifurca hacia dos centralizaciones (una por planta), cada una con su IGM, su embarrado y sus dos viviendas. El esquema declarado es el 2.2.2: emite el boletín en modo Reglamento para verlo verificado.' },
+  { id: 'conmutada3', t: 'Luz desde tres puntos', modo: null, build: montarConmutada3,
+    d: 'Conmutador → cruzamiento → conmutador: la fase entra por el común del primero, viaja por los dos hilos (rectos o cruzados según el cruzamiento) y vuelve por el común del segundo hacia la lámpara. Acciona los tres mecanismos: la luz cambia con cualquiera.' },
+  { id: 'telerruptor', t: 'Telerruptor con tres pulsadores', modo: null, build: montarTelerruptor,
+    d: 'Los tres pulsadores en paralelo dan impulsos a la bobina A1-A2 del telerruptor, y cada impulso cambia el estado de su contacto. Es el montaje típico de pasillos y escaleras con muchos puntos de mando. Mantén pulsado cualquiera y observa.' },
+  { id: 'bano', t: 'Baño reglamentario (ITC-BT-27)', modo: null, build: montarBanoOK,
+    d: 'La zona de baño dibuja los volúmenes V0/V1 (bañera), V2 (0,6 m) y V3 (2,4 m más). La luz queda en V3, y el interruptor y la toma también: dentro de V0–V2 estarían prohibidos. Prueba a arrastrar la toma junto a la bañera y mira el error.' },
+  { id: 'labpar', t: 'Laboratorio: paralelo con medidores', lab: true, build: montarLabParalelo,
+    d: 'Dos bombillas en paralelo sobre una pila de 4,5 V: cada una recibe la tensión completa. El amperímetro (en serie) mide la corriente total y el voltímetro (en paralelo) la tensión de una bombilla. Cambia una bombilla a serie y compara medidas.' }
+];
+
+function ejemplosModal() {
+  openModal(`<div class="mTitle">Instalaciones de ejemplo</div>
+    <div class="help"><p>Montajes correctos y comentados, listos para tocar y estudiar. El actual se conserva: al cargar un ejemplo puedes volver con <b>deshacer</b> (↩).</p></div>` +
+    EJEMPLOS.map(e => `<button class="mItem" data-m="ejemplo" data-id="${e.id}">
+      <div>${esc(e.t)}<small>${e.lab ? 'Laboratorio' : (e.modo === 'instalador' ? 'Modo Instalador' : 'Modo Aprendiz')}</small></div></button>`).join(''));
+}
+function cargarEjemplo(id) {
+  const ej = EJEMPLOS.find(x => x.id === id);
+  if (!ej) return;
+  salirEjercicioSi();
+  if (!!ej.lab !== S.lab) toggleLab(!!ej.lab);
+  histSnap();
+  ej.build();
+  if (!ej.lab && ej.modo && S.mode !== ej.modo) setMode(ej.modo);
+  closeSheet();
+  fitCamera(); update(); buildPalette();
+  openModal(`<div class="mTitle">${esc(ej.t)}</div><div class="help"><p>${esc(ej.d)}</p>
+    <p>Tócalo todo: fichas, palancas, multímetro, camino de la corriente… Para volver a tu montaje anterior, botón <b>deshacer</b> (↩).</p></div>
+    <button class="bigbtn pri" data-m="cerrar">Explorar</button>`);
+}
+
 function quitarCable(compId, term) {
   S.wires = S.wires.filter(w => !((w.a.c === compId && w.a.t === term) || (w.b.c === compId && w.b.t === term)));
 }

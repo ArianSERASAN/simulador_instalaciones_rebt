@@ -104,6 +104,90 @@ const RETOS = [
 ];
 
 function retosDone() { try { return JSON.parse(store.get('rebt.retos') || '{}') || {}; } catch (e) { return {}; } }
+
+/* tres pistas escalonadas por reto: de la orientación a la casi-solución */
+const RETO_PISTAS = {
+  r1: ['Sigue el orden del cuadro: la Red alimenta al IGA, el IGA al diferencial y este al PIA. Fase con fase y neutro con neutro.',
+       'Del PIA salen los dos conductores del circuito: la FASE baja al interruptor y de ahí a la lámpara; el NEUTRO va azul y directo del PIA a la lámpara, sin pasar por el interruptor.',
+       'Cadena completa: Red L→IGA · IGA→Dif · Dif→PIA (fase y neutro). Después PIA L→interruptor→luz L, y PIA N→luz N. Sube las tres palancas y cierra el interruptor.'],
+  r2: ['Un conmutador no corta: elige entre dos caminos (L1 o L2). La fase debe poder llegar a la lámpara por cualquiera de los dos.',
+       'La fase del PIA entra al COMÚN del primer conmutador. Sus L1 y L2 se unen con los L1 y L2 del segundo. Del COMÚN del segundo sale el retorno a la lámpara.',
+       'PIA L→común del 1º · L1↔L1 y L2↔L2 entre ambos · común del 2º→luz L · PIA N→luz N. Prueba las 4 combinaciones: la luz debe cambiar con cada toque.'],
+  r3: ['Una schuko necesita tres conductores: fase, neutro y tierra. Los dos primeros vienen del PIA; la tierra no pasa por las protecciones.',
+       'El camino de la tierra: borne PE de la toma → borne principal de tierra → pica, todo en verde-amarillo.',
+       'PIA L→toma L (marrón) · PIA N→toma N (azul) · toma PE→borne principal→pica. Y el PIA colgando del diferencial para que la proteja.'],
+  r4: ['C3 es el circuito más potente de la vivienda: mira la tabla REBT del menú (PIA y sección van juntos).',
+       'PIA de 25 A y TODOS los cables del circuito de 6 mm² (toca cada cable y cambia su sección). La carga se elige en la ficha de la toma.',
+       'Monta como el reto del enchufe pero con PIA a 25 A, cables de 6 mm² y carga de 5.500 W en la ficha de la toma. Si la caída supera el 3 %, acorta la longitud de los cables.'],
+  r5: ['Dos PIAs distintos colgando del MISMO diferencial: uno de 10 A para la luz, otro de 16 A para la toma.',
+       'Del diferencial salen dos parejas de cables: una a cada PIA. C1: 1,5 mm² con luz e interruptor. C2: 2,5 mm² con toma y tierra.',
+       'Dif L→PIA1 y Dif L→PIA2 (igual los neutros). PIA1 (10 A): interruptor + luz con 1,5 mm². PIA2 (16 A): toma con 2,5 mm², y su PE al borne y la pica.'],
+  r6: ['El timbre suena mientras recibe tensión: por eso se maneja con un PULSADOR (pestaña Maniobras), no con un interruptor.',
+       'La fase pasa por el pulsador antes de llegar al timbre; el neutro va directo del PIA al timbre.',
+       'PIA L→pulsador entrada · pulsador salida→timbre L · PIA N→timbre N. Con las protecciones armadas, mantén el dedo sobre el pulsador: suena solo mientras aprietas.'],
+  r7: ['Para tres puntos de mando: conmutador → CRUZAMIENTO → conmutador. El cruzamiento se intercala en los dos hilos que unen los conmutadores.',
+       'Los L1/L2 del primer conmutador entran al cruzamiento por arriba y salen por abajo hacia los L1/L2 del segundo: el cruzamiento los deja rectos o cruzados.',
+       'Fase→común del 1º · L1→cruce arriba-izda y L2→arriba-dcha · abajo del cruce→L1/L2 del 2º · común del 2º→luz L · neutro directo. La luz debe cambiar con los TRES mecanismos.'],
+  r8: ['El orden del enlace es fijo: primero protege la compañía (CGP), luego se mide (contador), luego se limita (ICP) y por último proteges tú (IGA).',
+       'Cablea en cadena, bornes de abajo con bornes de arriba: Red→CGP→contador→ICP→IGA, fase con fase y neutro con neutro.',
+       'Red L→CGP · CGP→contador · contador→ICP · ICP→IGA (con los neutros igual). Después cuelga del IGA un diferencial y un PIA con su interruptor y una luz encendida.'],
+  r9: ['Para un solo usuario no hay LGA ni CGP separada: la CPM reúne fusibles y contador, y de ella sale la derivación individual.',
+       'Red→CPM→ICP→IGA. La derivación individual es el tramo CPM→ICP: toca esos cables y sube su sección a 6 mm² o más.',
+       'Red L→CPM · CPM→ICP (ese cable a ≥6 mm²) · ICP→IGA · después diferencial, PIA y una luz encendida. Sin CGP ni contador sueltos en el plano.'],
+  r10: ['Estructura del 2.2.1: CGP 3~ → LGA (4 conductores) → IGM → embarrado → y por cada vivienda: fusible → contador → DI → vivienda.',
+        'Reparte las viviendas entre las TRES barras de fase del embarrado (marrón, negra, gris) y dales tierra desde el borne y la pica. La LGA a 10 mm² o más.',
+        'Red3→CGP3 (4 cables) · CGP3→IGM (la LGA, ≥10 mm²) · IGM→embarrado (4 cables a las 4 barras) · por vivienda: barra de SU fase→fusible→contador, barra N→contador, contador→vivienda, y PE de la vivienda→borne→pica.'],
+  r11: ['Igual que el edificio anterior pero la LGA se bifurca: de la misma CGP salen DOS ramas, una a cada IGM (una centralización por planta).',
+        'Duplica la estructura: cada planta con su IGM + embarrado + 2 viviendas (fusible+contador+DI con tierra). Y declara el esquema en el menú.',
+        'CGP3→IGM-A y CGP3→IGM-B (las 4 líneas a cada uno). Cada embarrado alimenta 2 viviendas en fases distintas. Al final: menú → Esquema de enlace → 2.2.2.'],
+  r12: ['Las líneas punteadas son las fronteras: V2 termina a 0,6 m de la bañera y V3 llega 2,4 m más allá. Tomas y mecanismos solo caben en V3 (o fuera).',
+        'Coloca la luz en la franja V2 o V3, y el interruptor y la toma más allá de la línea V2 (dentro de V3). El cableado, como siempre: PIA, diferencial y tierra.',
+        'Arrastra: luz dentro de la franja V2/V3 · interruptor y toma entre las líneas V2 y V3 · toma con su PE→borne→pica. Nada dentro de la bañera ni pegado a ella.'],
+  rl1: ['La corriente necesita un CIRCUITO CERRADO: salir del polo +, atravesar interruptor y bombilla, y volver al polo −.',
+        'Pila + → interruptor → bombilla → pila −. Si no luce, comprueba que el interruptor esté cerrado (I).',
+        'Cables: pila +→interruptor entrada · interruptor salida→bombilla · bombilla→pila −. Combina pila de 4,5 V con bombilla de 3,5 V o de 6 V.'],
+  rl2: ['En paralelo, cada bombilla se conecta DIRECTAMENTE a los dos polos de la pila: todas reciben la tensión completa.',
+        'Las dos bombillas comparten nodos: sus bornes izquierdos juntos al +, sus derechos juntos al −. La tensión nominal debe casar con la pila.',
+        'Pila de 4,5 V con dos bombillas de 3,5 V · 1 W en paralelo: brillan al máximo sin llegar a fundirse. Cuatro cables: +→b1, +→b2, b1→−, b2→−.'],
+  rl3: ['En serie la tensión se reparte: si las bombillas son iguales, cada una recibe la mitad y brilla a media luz.',
+        'Una tras otra: pila + → bombilla 1 → bombilla 2 → pila −. Si se apagan del todo, algún tramo está sin cerrar.',
+        'Pila de 9 V con dos bombillas de 6 V · 3 W en serie: cada una recibe unos 4,4 V y brilla en torno al 50 %.'],
+  rl4: ['El amperímetro se intercala EN SERIE: corta el camino donde quieras medir y pon el aparato en medio.',
+        'Con 9 V y 100 Ω, la ley de Ohm dice I = V/R = 9/100 = 0,09 A = 90 mA.',
+        'Pila 9 V +→amperímetro · amperímetro→resistencia de 100 Ω · resistencia→pila −. La pantalla debe rondar los 90 mA.'],
+  rl5: ['Dos resistencias IGUALES en serie se reparten la tensión a partes iguales: en el punto medio hay exactamente la mitad.',
+        'El voltímetro va EN PARALELO con la resistencia a medir: una punta a cada lado de ella, sin cortar el circuito.',
+        'Pila 12 V → R1 (100 Ω) → R2 (100 Ω) → pila. Voltímetro con una punta a cada lado de R2: leerá unos 6 V.'],
+  rl6: ['El fusible se coloca EN SERIE con la pila, de modo que TODA la corriente pase por él.',
+        'Provoca el corto uniendo con un cable los dos bornes de la bombilla: la corriente se dispara y el fusible debe fundirse antes de dañar nada.',
+        'Pila → fusible de 1 A → bombilla → pila. Después añade un cable directo entre los dos bornes de la bombilla: el fusible fundirá y la bombilla quedará intacta.']
+};
+
+/* enunciado + pistas + última comprobación, recuperables en cualquier momento */
+function retoInfoModal() {
+  const r = RETOS.find(x => x.id === S.reto);
+  if (!r) return;
+  const pistas = RETO_PISTAS[r.id] || [];
+  const n = Math.min(S.retoPistas || 0, pistas.length);
+  let h = `<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p></div>`;
+  if (S.retoFeedback) h += `<div class="msg warn"><span class="mdot"></span><div><b>Última comprobación:</b> ${esc(S.retoFeedback)}</div></div>`;
+  for (let i = 0; i < n; i++) h += `<div class="msg info"><span class="mdot"></span><div><b>Pista ${i + 1}:</b> ${esc(pistas[i])}</div></div>`;
+  if (n < pistas.length) h += `<button class="bigbtn sec" data-m="retoPista">Ver pista ${n + 1} de ${pistas.length}</button><div style="height:8px"></div>`;
+  h += `<button class="bigbtn pri" data-m="cerrar">Seguir con el reto</button>`;
+  openModal(h);
+}
+
+/* tocar el título de la barra reabre el enunciado (reto) o el parte (avería) */
+$('#retoTitle').addEventListener('click', () => {
+  if (S.reto) { retoInfoModal(); return; }
+  if (S.averia) {
+    const a = AVERIAS.find(x => x.id === S.averia);
+    const sint = a ? esc(a.s) : (S.averiaGen ? S.averiaGen.sintomas.map(esc).join('<br><br>') : '');
+    openModal(`<div class="mTitle">Parte de avería</div><div class="help"><p>${sint}</p>
+      <p>Usa el multímetro del menú y pulsa <b>Comprobar</b> cuando la des por reparada.</p></div>
+      <button class="bigbtn pri" data-m="cerrar">Seguir buscando</button>`);
+  }
+});
 function startReto(id) {
   const r = RETOS.find(r => r.id === id);
   if (!r) return;
@@ -116,6 +200,7 @@ function startReto(id) {
   }
   store.set('rebt.antes', serialize());  // conservar el montaje del usuario
   S.reto = id; S.averia = null; S.averiaGen = null;
+  S.retoPistas = 0; S.retoFeedback = null;
   /* lienzo limpio: el reto es un modo aparte */
   S.comps = []; S.wires = []; S.nextId = 1; S.sel = null; S.selWire = null; wireDraft = null;
   histClear();
@@ -124,7 +209,7 @@ function startReto(id) {
   closeModal(); closeSheet();
   fitCamera(); update(); buildPalette();
   openModal(`<div class="mTitle">${esc(r.t)}</div><div class="help"><p>${r.desc}</p>
-    <p>Empiezas con el lienzo vacío; tu montaje anterior volverá al salir del reto.</p></div>
+    <p>Empiezas con el lienzo vacío; tu montaje anterior volverá al salir del reto. <b>Toca el título del reto</b> (arriba) para releer el enunciado o pedir una pista.</p></div>
     <button class="bigbtn pri" data-m="cerrar">Al lío</button>`);
 }
 /* salir del ejercicio: si era una avería (que sustituyó el lienzo),
@@ -172,7 +257,7 @@ $('#btnRetoCheck').addEventListener('click', () => {
   update();                       // simulación fresca
   const v = r.check();
   if (v === true) {
-    const done = retosDone(); done[r.id] = true;
+    const done = retosDone(); done[r.id] = (S.retoPistas || 0) > 0 ? 2 : 1;   // 1 = sin pistas
     store.set('rebt.retos', JSON.stringify(done));
     /* conservar el montaje del reto en Mis montajes y restaurar el del usuario */
     const saves = getSaves();
@@ -185,8 +270,13 @@ $('#btnRetoCheck').addEventListener('click', () => {
       <button class="bigbtn sec" data-m="cerrar">Seguir montando</button>`);
     exitReto();
   } else {
-    toast(v);
-    $('#resChip').classList.add('open'); $('#resPanel').classList.add('open');
+    S.retoFeedback = typeof v === 'string' ? v : 'Aún no cumple lo que pide el enunciado.';
+    const pistas = RETO_PISTAS[r.id] || [];
+    const quedan = (S.retoPistas || 0) < pistas.length;
+    openModal(`<div class="mTitle">Todavía no</div>
+      <div class="msg warn"><span class="mdot"></span><div>${esc(S.retoFeedback)}</div></div>
+      ${quedan ? `<button class="bigbtn sec" data-m="retoPista">Ver una pista</button><div style="height:8px"></div>` : ''}
+      <button class="bigbtn pri" data-m="cerrar">Seguir intentando</button>`);
   }
 });
 
@@ -195,7 +285,7 @@ $('#btnRetoCheck').addEventListener('click', () => {
    ================================================================== */
 function serialize() {
   return JSON.stringify({ v: 2, mode: S.mode, view: S.view, comps: S.comps, wires: S.wires, nextId: S.nextId, cam: S.cam, noche: !!S.noche, esquema: S.esquema || null,
-    reto: S.reto || null, averia: S.averia || null, averiaGen: S.averiaGen || null });
+    reto: S.reto || null, averia: S.averia || null, averiaGen: S.averiaGen || null, retoPistas: S.retoPistas || 0 });
 }
 function deserialize(str) {
   try {
@@ -223,6 +313,7 @@ function deserialize(str) {
     S.esquema = ['2.1', '2.2.1', '2.2.2'].includes(d.esquema) ? d.esquema : null;
     /* el ejercicio activo viaja con el montaje (sobrevive a recargas) */
     S.reto = typeof d.reto === 'string' ? d.reto : null;
+    S.retoPistas = Number(d.retoPistas) || 0;
     S.averiaGen = (d.averiaGen && Array.isArray(d.averiaGen.sintomas)) ? d.averiaGen : null;
     S.averia = typeof d.averia === 'string' ? (d.averia === 'gen' ? (S.averiaGen ? 'gen' : null) : d.averia) : null;
     if (S.averia) S.reto = null;
@@ -329,8 +420,10 @@ function capturarPNG() {
    MENÚ Y MODALES
    ================================================================== */
 function menuModal() {
-  openModal(`<div class="mTitle">Menú</div>
+  openModal(`<img src="banner.svg" alt="" style="width:100%;display:block;border-radius:12px;margin-bottom:10px">
+    <div class="mTitle">Menú</div>
     <button class="mItem" data-m="retos"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6" fill="none" stroke="#f4b942" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Retos guiados<small>Ejercicios paso a paso con corrección automática</small></div></button>
+    <button class="mItem" data-m="ejemplos"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M4 6h7v12H4z M13 6h7v5h-7z M13 13h7v5h-7z" fill="none" stroke="#37c26e" stroke-width="2" stroke-linejoin="round"/></svg></span><div>Instalaciones de ejemplo<small>Montajes correctos y comentados para estudiar</small></div></button>
     <button class="mItem" data-m="averias"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z" fill="none" stroke="#e5533d" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.2" stroke="#e5533d" stroke-width="2" stroke-linecap="round"/></svg></span><div>Modo Avería<small>Te genera un montaje con un fallo oculto: encuéntralo</small></div></button>
     <button class="mItem" data-m="medir"><span class="mi-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#8de2ae" stroke-width="2"/><path d="M12 12l4-4" stroke="#8de2ae" stroke-width="2" stroke-linecap="round"/><path d="M7 21l-2 1M17 21l2 1" stroke="#8de2ae" stroke-width="2" stroke-linecap="round"/></svg></span><div>Multímetro<small>Toca dos bornes y mide tensión y continuidad</small></div></button>
     <button class="mItem" data-m="lab"><span class="mi-ico"><svg viewBox="0 0 24 24"><path d="M10 3v6L4.5 19a1.8 1.8 0 0 0 1.6 2.6h11.8a1.8 1.8 0 0 0 1.6-2.6L14 9V3" fill="none" stroke="#37c26e" stroke-width="2" stroke-linejoin="round"/><path d="M8 3h8M7 15h10" stroke="#37c26e" stroke-width="2" stroke-linecap="round"/></svg></span><div>${S.lab ? 'Volver al simulador REBT' : 'Laboratorio de circuitos'}<small>${S.lab ? 'Tu montaje REBT sigue guardado' : 'Pila, bombillas, serie/paralelo y medidas reales'}</small></div></button>
@@ -422,12 +515,15 @@ modalBody.addEventListener('click', e => {
   else if (m === 'averias') averiasModal();
   else if (m === 'averia') startAveria(id);
   else if (m === 'averiaGen') generarAveria(Number(id));
+  else if (m === 'ejemplos') ejemplosModal();
+  else if (m === 'ejemplo') cargarEjemplo(id);
   else if (m === 'montajes') montajesModal();
   else if (m === 'tabla') tablaModal();
   else if (m === 'esquema') esquemaModal();
   else if (m === 'esquemaSel') { S.esquema = id || null; autosave(); esquemaModal(); }
   else if (m === 'lab') { if (!S.lab) salirEjercicioSi(); toggleLab(!S.lab); }
   else if (m === 'rehacer') { redo(); closeModal(); }
+  else if (m === 'retoPista') { S.retoPistas = (S.retoPistas || 0) + 1; autosave(); retoInfoModal(); }
   else if (m === 'medir') { setMedir(true); closeModal(); }
   else if (m === 'exportar') exportarMontaje();
   else if (m === 'importar') importarMontaje();
